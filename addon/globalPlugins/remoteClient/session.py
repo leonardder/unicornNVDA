@@ -3,6 +3,7 @@ import time
 import speech
 import ui
 import tones
+import braille
 
 class RemoteSession(object):
 
@@ -92,6 +93,7 @@ class MasterSession(RemoteSession):
 		self.index_thread = None
 		self.transport.callback_manager.register_callback('msg_speak', self.local_machine.speak)
 		self.transport.callback_manager.register_callback('msg_cancel', self.local_machine.cancel_speech)
+		self.transport.callback_manager.register_callback('msg_braille_write_cells', self.local_machine.braille_write_cells)
 		self.transport.callback_manager.register_callback('msg_tone', self.local_machine.beep)
 		self.transport.callback_manager.register_callback('msg_wave', self.local_machine.play_wave)
 		self.transport.callback_manager.register_callback('msg_nvda_not_connected', self.handle_nvda_not_connected)
@@ -99,6 +101,7 @@ class MasterSession(RemoteSession):
 		self.transport.callback_manager.register_callback('msg_client_left', self.handle_client_disconnected)
 		self.transport.callback_manager.register_callback('msg_channel_joined', self.handle_channel_joined)
 		self.transport.callback_manager.register_callback('msg_set_clipboard_text', self.local_machine.set_clipboard_text)
+		self.transport.callback_manager.register_callback('msg_send_braille_info', self.send_braille_info)
 		self.transport.callback_manager.register_callback('transport_connected', self.handle_connected)
 		self.transport.callback_manager.register_callback('transport_disconnected', self.handle_disconnected)
 
@@ -125,6 +128,10 @@ class MasterSession(RemoteSession):
 
 	def handle_client_disconnected(self, user_id=None):
 		tones.beep(108, 300)
+
+	def send_braille_info(self):
+		display=braille.handler.display
+		self.transport.send(type="set_braille_info", name=display.name, description=display.description, numCells=display.numCells)
 
 	def send_indexes(self):
 		last = None

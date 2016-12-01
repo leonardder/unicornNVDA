@@ -63,6 +63,7 @@ class GlobalPlugin(GlobalPlugin):
 		self.hook_thread = None
 		self.sending_keys = False
 		self.key_modified = False
+		self.receiving_braille = False 
 		self.sd_server = None
 		cs = get_config()['controlserver']
 		self.temp_location = os.path.join(shlobj.SHGetFolderPath(0, shlobj.CSIDL_COMMON_APPDATA), 'temp')
@@ -277,6 +278,7 @@ class GlobalPlugin(GlobalPlugin):
 		self.hook_thread.daemon = True
 		self.hook_thread.start()
 		self.bindGesture(REMOTE_KEY, "sendKeys")
+		self.master_session.send_braille_info()
 		# Translators: Presented when connected to the remote computer.
 		ui.message(_("Connected!"))
 		beep_sequence.beep_sequence((440, 60), (660, 60))
@@ -306,6 +308,7 @@ class GlobalPlugin(GlobalPlugin):
 		self.slave_session = SlaveSession(transport=transport, local_machine=self.local_machine)
 		self.control_connector = transport
 		self.control_connector.callback_manager.register_callback('transport_connected', self.connected_to_relay)
+		self.control_connector.callback_manager.register_callback('msg_set_braille_info', self.on_braille_info)
 		self.control_connector_thread = ConnectorThread(connector=self.control_connector)
 		self.control_connector_thread.start()
 		self.disconnect_item.Enable(True)
@@ -314,7 +317,7 @@ class GlobalPlugin(GlobalPlugin):
 	def connected_to_relay(self):
 		log.info("Control connector connected")
 		beep_sequence.beep_sequence((720, 100), 50, (720, 100), 50, (720, 100))
-		# Transaltors: Presented in direct (client to server) remote connection when the controlled computer is ready.
+		# Translators: Presented in direct (client to server) remote connection when the controlled computer is ready.
 		speech.speakMessage(_("Connected to control server"))
 		self.push_clipboard_item.Enable(True)
 		write_connection_to_config(self.control_connector.address)
@@ -343,6 +346,8 @@ class GlobalPlugin(GlobalPlugin):
 			self.key_modified = kwargs['pressed']
 		if kwargs['vk_code'] == win32con.VK_F11 and kwargs['pressed'] and not self.key_modified:
 			self.sending_keys = False
+			if self.receiving_braille:
+				braille.handler.enabled = bool(braille.handler.displaySize)
 			# Translators: Presented when keyboard control is back to the controlling computer.
 			ui.message(_("Not sending keys."))
 			return True #Don't pass it on
@@ -353,6 +358,8 @@ class GlobalPlugin(GlobalPlugin):
 		# Translators: Presented when sending keyboard keys from the controlling computer to the controlled computer.
 		ui.message(_("Sending keys."))
 		self.sending_keys = True
+		if self.receiving_braille and braille.handler.enabled:
+			braille.handler.enabled = False
 
 	def event_gainFocus(self, obj, nextHandler):
 		if isinstance(obj, IAccessibleHandler.SecureDesktopNVDAObject):

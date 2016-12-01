@@ -7,7 +7,7 @@ import tones
 import speech
 import nvda_patcher
 import ctypes
-
+import braille
 import logging
 logger = logging.getLogger('local_machine')
 
@@ -40,6 +40,11 @@ class LocalMachine(object):
 		synth = speech.getSynth()
 		speech.beenCanceled = False
 		wx.CallAfter(synth.speak, sequence)
+
+	def braille_write_cells(self, cells):
+		if braille.handler.display.numCells>0:
+			# We use braille.handler._writeCells since this respects thread safe displays and automatically falls back to noBraille if desired
+			wx.CallAfter(braille.handler._writeCells, cells)
 
 	def send_key(self, vk_code=None, extended=None, pressed=None, **kwargs):
 		wx.CallAfter(input.send_key, vk_code, None, extended, pressed)
