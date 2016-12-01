@@ -21,7 +21,7 @@ addon_info = {
 	# version
 	"addon_version" : "1.3",
 	# Author(s)
-	"addon_author" : u"Tyler Spivey <tspivey@pcdesk.net>, Christopher Toth <q@q-continuum.net>",
+	"addon_author" : u"Tyler Spivey <tspivey@pcdesk.net>, Christopher Toth <q@q-continuum.net>, Babbage B.V. <info@babbage.com>",
 	# URL for the add-on documentation support
 	"addon_url" : "http://NVDARemote.com",
 	# Documentation file name
@@ -34,8 +34,7 @@ import os.path
 # Define the python files that are the sources of your add-on.
 # You can use glob expressions here, they will be expanded.
 pythonSources = [
-	'addon/globalPlugins/*/*.py',
-	'addon/synthDrivers/*/*.py',
+	'addon/*/*/*.py',
 ]
 
 # Files that contain strings for translation. Usually your python sources
