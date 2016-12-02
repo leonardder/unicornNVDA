@@ -4,12 +4,15 @@ import tones
 import nvwave
 import gui
 import speech
+import inputCore
+import braille
+import brailleInput
 
-class NVDAPatcher(callback_manager.CallbackManager):
+class NVDASlavePatcher(callback_manager.CallbackManager):
 	"""Class to manage patching of synth, tones, and nvwave."""
 
 	def __init__(self):
-		super(NVDAPatcher, self).__init__()
+		super(NVDASlavePatcher, self).__init__()
 		self.orig_speak = None
 		self.orig_cancel = None
 		self.orig_get_lastIndex  = None
@@ -119,3 +122,49 @@ class NVDAPatcher(callback_manager.CallbackManager):
 
 	def set_last_index_callback(self, callback):
 		self.last_index_callback = callback
+
+class NVDAMasterPatcher(callback_manager.CallbackManager):
+	"""Class to manage patching of braille input and master braille display changes."""
+
+	def __init__(self):
+		super(NVDAMasterPatcher, self).__init__()
+		self.orig_setDisplayByName = None
+		self.orig_executeGesture = None
+
+	def patch_braille_input(self):
+		if self.orig_executeGesture is not None:
+			return
+		self.orig_executeGesture = inputCore.manager.executeGesture
+		inputCore.manager.executeGesture= self.executeGesture
+
+	def patch_set_display(self):
+		if self.orig_setDisplayByName is not None:
+			return
+		self.orig_setDisplayByName = braille.handler.setDisplayByName
+		braille.handler.setDisplayByName = self.setDisplayByName
+
+	def unpatch_braille_input(self):
+		if self.orig_executeGesture is None:
+			return
+		inputCore.manager.executeGesture = self.orig_executeGesture
+		self.orig_executeGesture = None
+
+	def unpatch_set_display(self):
+		if self.orig_setDisplayByName is None:
+			return
+		braille.handler.setDisplayByName = self.orig_setDisplayByName
+		self.orig_setDisplayByName = None
+
+	def executeGesture(self, gesture):
+		if isinstance(gesture,(braille.BrailleDisplayGesture,brailleInput.BrailleInputGesture)):
+			if not gesture.script:
+				return
+			script=".".join((scriptHandler.getScriptLocation(script),scriptHandler.getScriptName(script)))
+			gesture.script=script
+			self.call_callbacks('execute_gesture', **gesture.__dict__)
+		else:
+			self.orig_executeGesture			
+
+	def setDisplayByName(self, name, isFallback=False):
+		self.orig_setDisplayByName(name,isFallback)
+		self.call_callbacks('set_display')

@@ -4,12 +4,14 @@ import speech
 import ui
 import tones
 import braille
+import nvda_patcher
 
 class RemoteSession(object):
 
 	def __init__(self, local_machine, transport):
 		self.local_machine = local_machine
 		self.transport = transport
+		self.patcher = None
 
 class SlaveSession(RemoteSession):
 	"""Session that runs on the slave and manages state."""
@@ -23,17 +25,18 @@ class SlaveSession(RemoteSession):
 		self.last_client_index = None
 		self.transport.callback_manager.register_callback('msg_index', self.update_index)
 		self.transport.callback_manager.register_callback('transport_closing', self.handle_transport_closing)
+		self.patcher = nvda_patcher.NVDASlavePatcher()
 		self.patch_callbacks_added = False
 		self.transport.callback_manager.register_callback('msg_channel_joined', self.handle_channel_joined)
 		self.transport.callback_manager.register_callback('msg_set_clipboard_text', self.local_machine.set_clipboard_text)
 		self.transport.callback_manager.register_callback('msg_send_SAS', self.local_machine.send_SAS)
 
 	def handle_client_connected(self, user_id=None):
-		self.local_machine.patcher.patch()
+		self.patcher.patch()
 		if not self.patch_callbacks_added:
 			self.add_patch_callbacks()
 			self.patch_callbacks_added = True
-		self.local_machine.patcher.orig_beep(1000, 300)
+		self.patcher.orig_beep(1000, 300)
 		self.masters[user_id] = True
 
 	def handle_channel_joined(self, channel=None, user_ids=None):
@@ -41,31 +44,31 @@ class SlaveSession(RemoteSession):
 			self.handle_client_connected(user_id=user)
 
 	def handle_transport_closing(self):
-		self.local_machine.patcher.unpatch()
+		self.patcher.unpatch()
 		if self.patch_callbacks_added:
 			self.remove_patch_callbacks()
 			self.patch_callbacks_added = False
 
 	def handle_transport_disconnected(self):
-		self.local_machine.patcher.orig_beep(1000, 300)
-		self.local_machine.patcher.unpatch()
+		self.patcher.orig_beep(1000, 300)
+		self.patcher.unpatch()
 
 	def handle_client_disconnected(self, user_id=None):
-		self.local_machine.patcher.orig_beep(108, 300)
+		self.patcher.orig_beep(108, 300)
 		del self.masters[user_id]
 		if not self.masters:
-			self.local_machine.patcher.unpatch()
+			self.patcher.unpatch()
 
 	def add_patch_callbacks(self):
 		patcher_callbacks = (('speak', self.speak), ('beep', self.beep), ('wave', self.playWaveFile), ('cancel_speech', self.cancel_speech))
 		for event, callback in patcher_callbacks:
-			self.local_machine.patcher.register_callback(event, callback)
-		self.local_machine.patcher.set_last_index_callback(self._get_lastIndex)
+			self.patcher.register_callback(event, callback)
+		self.patcher.set_last_index_callback(self._get_lastIndex)
 
 	def remove_patch_callbacks(self):
 		patcher_callbacks = (('speak', self.speak), ('beep', self.beep), ('wave', self.playWaveFile), ('cancel_speech', self.cancel_speech))
 		for event, callback in patcher_callbacks:
-			self.local_machine.patcher.unregister_callback(event, callback)
+			self.patcher.unregister_callback(event, callback)
 
 	def speak(self, speechSequence):
 		self.transport.send(type="speak", sequence=speechSequence)
@@ -91,6 +94,8 @@ class MasterSession(RemoteSession):
 		super(MasterSession, self).__init__(*args, **kwargs)
 		self.slaves = []
 		self.index_thread = None
+		self.patcher = nvda_patcher.NVDAMasterPatcher()
+		self.patch_callbacks_added = False
 		self.transport.callback_manager.register_callback('msg_speak', self.local_machine.speak)
 		self.transport.callback_manager.register_callback('msg_cancel', self.local_machine.cancel_speech)
 		self.transport.callback_manager.register_callback('msg_braille_write_cells', self.local_machine.braille_write_cells)
@@ -124,10 +129,21 @@ class MasterSession(RemoteSession):
 			self.handle_client_connected(user_id=user)
 
 	def handle_client_connected(self, user_id=None):
+		self.patcher.patch_set_display()
+		if not self.patch_callbacks_added:
+			self.add_patch_callbacks()
+			self.patch_callbacks_added = True
 		tones.beep(1000, 300)
 
 	def handle_client_disconnected(self, user_id=None):
+		self.patcher.unpatch_set_display()
+		if self.patch_callbacks_added:
+			self.remove_patch_callbacks()
+			self.patch_callbacks_added = False
 		tones.beep(108, 300)
+
+	def execute_gesture(self,**kwargs):
+		self.transport.send(type="execute_gesture", **kwargs)
 
 	def send_braille_info(self):
 		display=braille.handler.display
@@ -147,3 +163,12 @@ class MasterSession(RemoteSession):
 				last = index
 			time.sleep(POLL_TIME)
 
+	def add_patch_callbacks(self):
+		patcher_callbacks = (('execute_gesture', self.execute_gesture), ('set_display', self.send_braille_info))
+		for event, callback in patcher_callbacks:
+			self.patcher.register_callback(event, callback)
+
+	def remove_patch_callbacks(self):
+		patcher_callbacks = (('execute_gesture', self.execute_gesture), ('set_display', self.send_braille_info))
+		for event, callback in patcher_callbacks:
+			self.patcher.unregister_callback(event, callback)

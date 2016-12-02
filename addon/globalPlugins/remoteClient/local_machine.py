@@ -5,7 +5,6 @@ import api
 import nvwave
 import tones
 import speech
-import nvda_patcher
 import ctypes
 import braille
 import logging
@@ -15,7 +14,6 @@ class LocalMachine(object):
 
 	def __init__(self):
 		self.is_muted = False
-		self.patcher = nvda_patcher.NVDAPatcher()
 
 	def play_wave(self, fileName, async):
 		if self.is_muted:

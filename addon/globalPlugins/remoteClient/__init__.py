@@ -308,7 +308,6 @@ class GlobalPlugin(GlobalPlugin):
 		self.slave_session = SlaveSession(transport=transport, local_machine=self.local_machine)
 		self.control_connector = transport
 		self.control_connector.callback_manager.register_callback('transport_connected', self.connected_to_relay)
-		self.control_connector.callback_manager.register_callback('msg_set_braille_info', self.on_braille_info)
 		self.control_connector_thread = ConnectorThread(connector=self.control_connector)
 		self.control_connector_thread.start()
 		self.disconnect_item.Enable(True)
