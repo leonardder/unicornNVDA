@@ -346,6 +346,7 @@ class GlobalPlugin(GlobalPlugin):
 		if kwargs['vk_code'] == win32con.VK_F11 and kwargs['pressed'] and not self.key_modified:
 			self.sending_keys = False
 			if self.receiving_braille:
+				self.master_session.patcher.unpatch_braille_input()
 				braille.handler.enabled = bool(braille.handler.displaySize)
 			# Translators: Presented when keyboard control is back to the controlling computer.
 			ui.message(_("Not sending keys."))
@@ -358,6 +359,7 @@ class GlobalPlugin(GlobalPlugin):
 		ui.message(_("Sending keys."))
 		self.sending_keys = True
 		if self.receiving_braille and braille.handler.enabled:
+			self.master_session.patcher.patch_braille_input()
 			braille.handler.enabled = False
 
 	def event_gainFocus(self, obj, nextHandler):
