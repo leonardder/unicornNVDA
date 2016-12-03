@@ -12,7 +12,7 @@ class BrailleDisplayDriver(braille.BrailleDisplayDriver):
 	# Translators: User visible name of the virtual braille display driver
 	description = _("Remote braille")
 	isThreadSafe = True
-	gestureMap=inputCore.GlobalGestureMap()
+	#gestureMap=inputCore.GlobalGestureMap()
 
 	def __init__(self):
 		super(BrailleDisplayDriver, self).__init__()
@@ -56,12 +56,10 @@ class BrailleDisplayDriver(braille.BrailleDisplayDriver):
 		else:
 			raise RuntimeError("No transport")
 
-	def handle_set_braille_info(self, name=None, description=None, numCells=0, gestureMap=None):
+	def handle_set_braille_info(self, name=None, description=None, numCells=0):
 		self.remoteName=name
 		self.remoteDescription=description
 		self.remoteNumCells=numCells
-		if gestureMap:
-		
 		braille.handler.displaySize=numCells
 		braille.handler.enabled = bool(numCells)
 

@@ -147,7 +147,7 @@ class MasterSession(RemoteSession):
 
 	def send_braille_info(self):
 		display=braille.handler.display
-		self.transport.send(type="set_braille_info", name=display.name, description=display.description, numCells=display.numCells, gestureMap=map=display.gestureMap._map)
+		self.transport.send(type="set_braille_info", name=display.name, description=display.description, numCells=display.numCells)
 
 	def send_indexes(self):
 		last = None
