@@ -223,6 +223,7 @@ class GlobalPlugin(GlobalPlugin):
 		self.receiving_braille=False
 
 	def disconnect_control(self):
+		self.slave_session.remote_braille_display.terminate()
 		self.control_connector_thread.running = False
 		self.control_connector.close()
 		self.control_connector = None

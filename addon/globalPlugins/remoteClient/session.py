@@ -5,6 +5,7 @@ import ui
 import tones
 import braille
 import nvda_patcher
+from brailleDisplayDrivers.remoteBraille import BrailleDisplayDriver as remote_braille_display
 
 class RemoteSession(object):
 
@@ -18,6 +19,7 @@ class SlaveSession(RemoteSession):
 
 	def __init__(self, *args, **kwargs):
 		super(SlaveSession, self).__init__(*args, **kwargs)
+		self.remote_braille_display=remote_braille_display(self.transport)
 		self.transport.callback_manager.register_callback('msg_client_joined', self.handle_client_connected)
 		self.transport.callback_manager.register_callback('msg_client_left', self.handle_client_disconnected)
 		self.transport.callback_manager.register_callback('msg_key', self.local_machine.send_key)
@@ -60,13 +62,13 @@ class SlaveSession(RemoteSession):
 			self.patcher.unpatch()
 
 	def add_patch_callbacks(self):
-		patcher_callbacks = (('speak', self.speak), ('beep', self.beep), ('wave', self.playWaveFile), ('cancel_speech', self.cancel_speech))
+		patcher_callbacks = (('speak', self.speak), ('beep', self.beep), ('wave', self.playWaveFile), ('cancel_speech', self.cancel_speech), ('write_cells', self.remote_braille_display.display))
 		for event, callback in patcher_callbacks:
 			self.patcher.register_callback(event, callback)
 		self.patcher.set_last_index_callback(self._get_lastIndex)
 
 	def remove_patch_callbacks(self):
-		patcher_callbacks = (('speak', self.speak), ('beep', self.beep), ('wave', self.playWaveFile), ('cancel_speech', self.cancel_speech))
+		patcher_callbacks = (('speak', self.speak), ('beep', self.beep), ('wave', self.playWaveFile), ('cancel_speech', self.cancel_speech), ('write_cells', self.remote_braille_display.display))
 		for event, callback in patcher_callbacks:
 			self.patcher.unregister_callback(event, callback)
 

@@ -14,17 +14,17 @@ class BrailleDisplayDriver(braille.BrailleDisplayDriver):
 	isThreadSafe = True
 	#gestureMap=inputCore.GlobalGestureMap()
 
-	def __init__(self):
+	def __init__(self, transport=None):
 		super(BrailleDisplayDriver, self).__init__()
 		self.remoteName=None
 		self.remoteDescription=None
 		self.remoteNumCells=0
-		self.transport=None
-		if self.remoteClient.slave_session:
+		self.transport=transport
+		if not self.transport and self.remoteClient.slave_session:
 			self.transport=self.remoteClient.slave_session.transport
-			self.transport.callback_manager.register_callback('msg_set_braille_info', self.handle_set_braille_info)
-			self.transport.callback_manager.register_callback('msg_execute_gesture', self.handle_input)
-			self.transport.send(type="send_braille_info")
+		self.transport.callback_manager.register_callback('msg_set_braille_info', self.handle_set_braille_info)
+		self.transport.callback_manager.register_callback('msg_execute_gesture', self.handle_input)
+		self.transport.send(type="send_braille_info")
 
 	def terminate(self):
 		if self.transport:
@@ -45,7 +45,8 @@ class BrailleDisplayDriver(braille.BrailleDisplayDriver):
 
 	@classmethod
 	def check(cls):
-		return any(plugin for plugin in globalPluginHandler.runningPlugins if plugin.__module__=='globalPlugins.remoteClient')
+		#return any(plugin for plugin in globalPluginHandler.runningPlugins if plugin.__module__=='globalPlugins.remoteClient')
+		return False
 
 	def _get_numCells(self):
 		return self.remoteNumCells
@@ -66,7 +67,10 @@ class BrailleDisplayDriver(braille.BrailleDisplayDriver):
 		self.remoteNumCells=numCells
 		braille.handler.displaySize=numCells
 		braille.handler.enabled = bool(numCells)
-		self.transport.send(type="sending_braille", state=True)
+		if self.transport:
+			self.transport.send(type="sending_braille", state=True)
+		else:
+			raise RuntimeError("No transport")
 
 	def handle_input(self, **kwargs):
 		try:
