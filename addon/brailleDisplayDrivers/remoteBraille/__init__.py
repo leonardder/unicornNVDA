@@ -64,8 +64,9 @@ class BrailleDisplayDriver(braille.BrailleDisplayDriver):
 		self.remoteName=name
 		self.remoteDescription=description
 		self.remoteNumCells=numCells
-		braille.handler.displaySize=numCells
-		braille.handler.enabled = bool(numCells)
+		currentNumCells=braille.handler.display.numCells
+		braille.handler.displaySize=numCells 		if braille.handler.display==self or currentNumCells==0 else min(currentNumCells,numCells)
+		braille.handler.enabled = bool(braille.handler.displaySize)
 		self.transport.send(type="sending_braille", state=True)
 
 	def handle_input(self, **kwargs):

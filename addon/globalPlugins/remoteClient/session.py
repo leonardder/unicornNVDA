@@ -29,6 +29,7 @@ class SlaveSession(RemoteSession):
 		self.patch_callbacks_added = False
 		self.transport.callback_manager.register_callback('msg_channel_joined', self.handle_channel_joined)
 		self.transport.callback_manager.register_callback('msg_set_clipboard_text', self.local_machine.set_clipboard_text)
+		self.transport.callback_manager.register_callback('msg_send_braille_info', self.send_braille_info)
 		self.transport.callback_manager.register_callback('msg_send_SAS', self.local_machine.send_SAS)
 
 	def handle_client_connected(self, user_id=None):
@@ -58,6 +59,10 @@ class SlaveSession(RemoteSession):
 		del self.masters[user_id]
 		if not self.masters:
 			self.patcher.unpatch()
+
+	def send_braille_info(self):
+		display=braille.handler.display
+		self.transport.send(type="set_braille_info", name=display.name, description=display.description, numCells=display.numCells)
 
 	def add_patch_callbacks(self):
 		patcher_callbacks = (('speak', self.speak), ('beep', self.beep), ('wave', self.playWaveFile), ('cancel_speech', self.cancel_speech))
