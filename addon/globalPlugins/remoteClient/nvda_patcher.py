@@ -7,6 +7,8 @@ import speech
 import inputCore
 import braille
 import brailleInput
+import scriptHandler
+from logHandler import log
 
 class NVDASlavePatcher(callback_manager.CallbackManager):
 	"""Class to manage patching of synth, tones, and nvwave."""
@@ -159,8 +161,11 @@ class NVDAMasterPatcher(callback_manager.CallbackManager):
 		if isinstance(gesture,(braille.BrailleDisplayGesture,brailleInput.BrailleInputGesture)):
 			dict = { key: gesture.__dict__[key] for key in gesture.__dict__ if isinstance(gesture.__dict__[key],(int,str,bool))}
 			if gesture.script:
-				location=scriptHandler.getScriptLocation(gesture.script).rsplit(".",1)
 				name=scriptHandler.getScriptName(gesture.script)
+				if name.startswith("kb"):
+					location=['globalCommands', 'GlobalCommands']
+				else:
+					location=scriptHandler.getScriptLocation(gesture.script).rsplit(".",1)
 				dict["scriptPath"]=location+[name]
 			else:
 				scriptData=None
@@ -175,11 +180,13 @@ class NVDAMasterPatcher(callback_manager.CallbackManager):
 						except StopIteration:
 							continue
 				if scriptData:
-					dict["scriptPath"]=[scriptData[0].__module__,scriptData[0].__name__,scriptData[1]
+					dict["scriptPath"]=[scriptData[0].__module__,scriptData[0].__name__,scriptData[1]]
 			if hasattr(gesture,"source") and "source" not in dict:
 				dict["source"]=gesture.source
 			if hasattr(gesture,"id") and "id" not in dict:
 				dict["id"]=gesture.id
+			if hasattr(gesture,"identifiers") and "identifiers" not in dict:
+				dict["identifiers"]=gesture.identifiers
 			if hasattr(gesture,"dots") and "dots" not in dict:
 				dict["dots"]=gesture.dots
 			if hasattr(gesture,"space") and "space" not in dict:
@@ -191,5 +198,7 @@ class NVDAMasterPatcher(callback_manager.CallbackManager):
 			self.orig_executeGesture(gesture)
 
 	def setDisplayByName(self, name, isFallback=False):
-		self.orig_setDisplayByName(name,isFallback)
-		self.call_callbacks('set_display')
+		result=self.orig_setDisplayByName(name,isFallback)
+		if result:
+			self.call_callbacks('set_display')
+		return result

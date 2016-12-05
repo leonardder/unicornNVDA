@@ -22,6 +22,7 @@ import wx
 import gui
 import beep_sequence
 import speech
+import braille
 from transport import RelayTransport, ConnectorThread
 import local_machine
 import serializer
@@ -63,7 +64,7 @@ class GlobalPlugin(GlobalPlugin):
 		self.hook_thread = None
 		self.sending_keys = False
 		self.key_modified = False
-		self.receiving_braille = False 
+		self.receiving_braille=False
 		self.sd_server = None
 		cs = get_config()['controlserver']
 		self.temp_location = os.path.join(shlobj.SHGetFolderPath(0, shlobj.CSIDL_COMMON_APPDATA), 'temp')
@@ -219,6 +220,7 @@ class GlobalPlugin(GlobalPlugin):
 			self.hook_thread = None
 			self.removeGestureBinding(REMOTE_KEY)
 		self.key_modified = False
+		self.receiving_braille=False
 
 	def disconnect_control(self):
 		self.control_connector_thread.running = False
@@ -287,12 +289,18 @@ class GlobalPlugin(GlobalPlugin):
 		# Translators: Presented when connection to a remote computer was interupted.
 		ui.message(_("Connection interrupted"))
 
+	def on_sending_braille(self, state=False):
+		self.receiving_braille=state
+		if self.sending_keys:
+			self.set_remote_braille(True)
+
 	def connect_slave(self, address, channel):
 		transport = RelayTransport(address=address, serializer=serializer.JSONSerializer(), channel=channel)
 		self.master_session = MasterSession(transport=transport, local_machine=self.local_machine)
 		transport.callback_manager.register_callback('transport_connected', self.on_connected_to_slave)
 		transport.callback_manager.register_callback('transport_connection_failed', self.on_slave_connection_failed)
 		transport.callback_manager.register_callback('transport_disconnected', self.on_disconnected_from_slave)
+		transport.callback_manager.register_callback('msg_sending_braille', self.on_sending_braille)
 		self.connector = transport
 		self.connector_thread = ConnectorThread(connector=transport)
 		self.connector_thread.start()
@@ -345,9 +353,7 @@ class GlobalPlugin(GlobalPlugin):
 			self.key_modified = kwargs['pressed']
 		if kwargs['vk_code'] == win32con.VK_F11 and kwargs['pressed'] and not self.key_modified:
 			self.sending_keys = False
-			if self.receiving_braille:
-				self.master_session.patcher.unpatch_braille_input()
-				braille.handler.enabled = bool(braille.handler.displaySize)
+			self.set_remote_braille(False)
 			# Translators: Presented when keyboard control is back to the controlling computer.
 			ui.message(_("Not sending keys."))
 			return True #Don't pass it on
@@ -358,9 +364,20 @@ class GlobalPlugin(GlobalPlugin):
 		# Translators: Presented when sending keyboard keys from the controlling computer to the controlled computer.
 		ui.message(_("Sending keys."))
 		self.sending_keys = True
-		if self.receiving_braille and braille.handler.enabled:
+		self.set_remote_braille(True)
+
+	def set_remote_braille(self, state):
+		if state and self.receiving_braille and braille.handler.enabled:
 			self.master_session.patcher.patch_braille_input()
 			braille.handler.enabled = False
+			if braille.handler._cursorBlinkTimer:
+				braille.handler._cursorBlinkTimer.Stop()
+				braille.handler._cursorBlinkTimer=None
+			self.local_machine.remote_braille=True			
+		elif not state:
+			self.master_session.patcher.unpatch_braille_input()
+			braille.handler.enabled = bool(braille.handler.displaySize)
+			self.local_machine.remote_braille=False
 
 	def event_gainFocus(self, obj, nextHandler):
 		if isinstance(obj, IAccessibleHandler.SecureDesktopNVDAObject):

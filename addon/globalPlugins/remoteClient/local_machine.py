@@ -14,7 +14,8 @@ class LocalMachine(object):
 
 	def __init__(self):
 		self.is_muted = False
-
+		self.remote_braille=False
+		
 	def play_wave(self, fileName, async):
 		if self.is_muted:
 			return
@@ -40,7 +41,7 @@ class LocalMachine(object):
 		wx.CallAfter(synth.speak, sequence)
 
 	def braille_write_cells(self, cells):
-		if braille.handler.display.numCells>0:
+		if self.remote_braille and braille.handler.display.numCells>0:
 			# We use braille.handler._writeCells since this respects thread safe displays and automatically falls back to noBraille if desired
 			wx.CallAfter(braille.handler._writeCells, cells)
 

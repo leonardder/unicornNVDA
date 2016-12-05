@@ -23,14 +23,18 @@ class BrailleDisplayDriver(braille.BrailleDisplayDriver):
 		if self.remoteClient.slave_session:
 			self.transport=self.remoteClient.slave_session.transport
 			self.transport.callback_manager.register_callback('msg_set_braille_info', self.handle_set_braille_info)
-			self.transport.callback_manager.register_callback('msg_script', self.handle_input)
+			self.transport.callback_manager.register_callback('msg_execute_gesture', self.handle_input)
 			self.transport.send(type="send_braille_info")
 
 	def terminate(self):
+		if self.transport:
+			self.transport.callback_manager.unregister_callback('msg_set_braille_info', self.handle_set_braille_info)
+			self.transport.callback_manager.unregister_callback('msg_execute_gesture', self.handle_input)
+			self.transport.send(type="sending_braille", state=False)
+			self.transport=None
 		self.remoteName=None
 		self.remoteDescription=None
 		self.remoteNumCells=0
-		self.transport=None
 		super(BrailleDisplayDriver, self).terminate()
 
 	def _get_remoteClient(self):
@@ -62,10 +66,11 @@ class BrailleDisplayDriver(braille.BrailleDisplayDriver):
 		self.remoteNumCells=numCells
 		braille.handler.displaySize=numCells
 		braille.handler.enabled = bool(numCells)
+		self.transport.send(type="sending_braille", state=True)
 
 	def handle_input(self, **kwargs):
 		try:
-			inputCore.manager.executeGesture(InputGesture(self.remoteName, **kwargs))
+			inputCore.manager.executeGesture(InputGesture(**kwargs))
 		except inputCore.NoInputGestureAction:
 			pass
 
@@ -75,11 +80,11 @@ class InputGesture(braille.BrailleDisplayGesture, brailleInput.BrailleInputGestu
 		super(InputGesture, self).__init__()
 		self.__dict__.update(kwargs)
 		self.source="remote{}{}".format(self.source[0].upper(),self.source[1:])
-		self.scriptPath=getattr(self,"scriptPath","")
+		self.scriptPath=getattr(self,"scriptPath",None)
 		self.script=self.findScript() if self.scriptPath else None
 
 	def findScript(self):
-		if not self.scriptPath:
+		if not (isinstance(self.scriptPath,list) and len(self.scriptPath)==3):
 			return None
 		module,cls,scriptName=self.scriptPath
 		focus = api.getFocusObject()
@@ -88,16 +93,20 @@ class InputGesture(braille.BrailleDisplayGesture, brailleInput.BrailleInputGestu
 		if scriptName.startswith("kb:"):
 			# Emulate a key press.
 			return scriptHandler._makeKbEmulateScript(scriptName)
-		
-				# Global plugin level.
-		for plugin in globalPluginHandler.runningPlugins:
-			func = getattr(plugin, "script_%s" % scriptName, None)
-			if func:
-				return func
+
+		import globalCommands
+
+		# Global plugin level.
+		if cls=='GlobalPlugin':
+			for plugin in globalPluginHandler.runningPlugins:
+				if module==plugin.__module__:
+					func = getattr(plugin, "script_%s" % scriptName, None)
+					if func:
+						return func
 
 		# App module level.
 		app = focus.appModule
-		if app:
+		if app and cls=='AppModule' and module==app.__module__:
 			func = getattr(app, "script_%s" % scriptName, None)
 			if func:
 				return func
