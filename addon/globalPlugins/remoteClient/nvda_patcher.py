@@ -11,7 +11,7 @@ import scriptHandler
 from logHandler import log
 
 class NVDASlavePatcher(callback_manager.CallbackManager):
-	"""Class to manage patching of synth, tones, and nvwave."""
+	"""Class to manage patching of synth, tones, nvwave, and braille."""
 
 	def __init__(self):
 		super(NVDASlavePatcher, self).__init__()
@@ -22,6 +22,7 @@ class NVDASlavePatcher(callback_manager.CallbackManager):
 		self.orig_setSynth  = None
 		self.orig_beep = None
 		self.orig_playWaveFile = None
+		self.orig_display = None
 
 	def patch_synth(self):
 		if self.orig_speak is not None:
@@ -56,6 +57,12 @@ class NVDASlavePatcher(callback_manager.CallbackManager):
 		self.orig_playWaveFile = nvwave.playWaveFile
 		nvwave.playWaveFile = self.playWaveFile
 
+	def patch_braille(self):
+		if self.orig_display is not None:
+			return
+		self.orig_display = braille.handler._writeCells
+		braille.handler._writeCells = self.display
+
 	def unpatch_synth(self):
 		if self.orig_speak is None:
 			return
@@ -86,15 +93,23 @@ class NVDASlavePatcher(callback_manager.CallbackManager):
 		nvwave.playWaveFile = self.orig_playWaveFile
 		self.orig_playWaveFile = None
 
+	def unpatch_braille(self):
+		if self.orig_display is None:
+			return
+		braille.handler._writeCells = self.orig_display
+		self.orig_display = None
+
 	def patch(self):
 		self.patch_synth()
 		self.patch_tones()
 		self.patch_nvwave()
+		self.patch_braille()
 
 	def unpatch(self):
 		self.unpatch_synth()
 		self.unpatch_tones()
 		self.unpatch_nvwave()
+		self.unpatch_braille()
 
 	def speak(self, speechSequence):
 		self.call_callbacks('speak', speechSequence=speechSequence)
@@ -118,6 +133,10 @@ class NVDASlavePatcher(callback_manager.CallbackManager):
 	def playWaveFile(self, fileName, async=True):
 		self.call_callbacks('wave', fileName=fileName, async=async)
 		return self.orig_playWaveFile(fileName, async=async)
+
+	def display(self, cells):
+		self.call_callbacks('display', cells=cells)
+		self.orig_display(cells)
 
 	def _get_lastIndex(self, instance):
 		return self.last_index_callback()
@@ -193,7 +212,7 @@ class NVDAMasterPatcher(callback_manager.CallbackManager):
 				dict["space"]=gesture.space
 			if hasattr(gesture,"routingIndex") and "routingIndex" not in dict:
 				dict["routingIndex"]=gesture.routingIndex
-			self.call_callbacks('execute_gesture', **dict)
+			self.call_callbacks('braille_input', **dict)
 		else:
 			self.orig_executeGesture(gesture)
 

@@ -64,7 +64,6 @@ class GlobalPlugin(GlobalPlugin):
 		self.hook_thread = None
 		self.sending_keys = False
 		self.key_modified = False
-		self.receiving_braille=False
 		self.sd_server = None
 		cs = get_config()['controlserver']
 		self.temp_location = os.path.join(shlobj.SHGetFolderPath(0, shlobj.CSIDL_COMMON_APPDATA), 'temp')
@@ -220,7 +219,6 @@ class GlobalPlugin(GlobalPlugin):
 			self.hook_thread = None
 			self.removeGestureBinding(REMOTE_KEY)
 		self.key_modified = False
-		self.receiving_braille=False
 
 	def disconnect_control(self):
 		self.control_connector_thread.running = False
@@ -280,7 +278,6 @@ class GlobalPlugin(GlobalPlugin):
 		self.hook_thread.daemon = True
 		self.hook_thread.start()
 		self.bindGesture(REMOTE_KEY, "sendKeys")
-		self.master_session.send_braille_info()
 		# Translators: Presented when connected to the remote computer.
 		ui.message(_("Connected!"))
 		beep_sequence.beep_sequence((440, 60), (660, 60))
@@ -289,18 +286,12 @@ class GlobalPlugin(GlobalPlugin):
 		# Translators: Presented when connection to a remote computer was interupted.
 		ui.message(_("Connection interrupted"))
 
-	def on_sending_braille(self, state=False):
-		self.receiving_braille=state
-		if self.sending_keys:
-			self.set_remote_braille(True)
-
 	def connect_slave(self, address, channel):
 		transport = RelayTransport(address=address, serializer=serializer.JSONSerializer(), channel=channel)
 		self.master_session = MasterSession(transport=transport, local_machine=self.local_machine)
 		transport.callback_manager.register_callback('transport_connected', self.on_connected_to_slave)
 		transport.callback_manager.register_callback('transport_connection_failed', self.on_slave_connection_failed)
 		transport.callback_manager.register_callback('transport_disconnected', self.on_disconnected_from_slave)
-		transport.callback_manager.register_callback('msg_sending_braille', self.on_sending_braille)
 		self.connector = transport
 		self.connector_thread = ConnectorThread(connector=transport)
 		self.connector_thread.start()
@@ -325,7 +316,7 @@ class GlobalPlugin(GlobalPlugin):
 		log.info("Control connector connected")
 		beep_sequence.beep_sequence((720, 100), 50, (720, 100), 50, (720, 100))
 		# Translators: Presented in direct (client to server) remote connection when the controlled computer is ready.
-		speech.speakMessage(_("Connected to control server"))
+		ui.message(_("Connected to control server"))
 		self.push_clipboard_item.Enable(True)
 		write_connection_to_config(self.control_connector.address)
 
@@ -367,7 +358,7 @@ class GlobalPlugin(GlobalPlugin):
 		self.set_remote_braille(True)
 
 	def set_remote_braille(self, state):
-		if state and self.receiving_braille and braille.handler.enabled:
+		if state and braille.handler.enabled:
 			self.master_session.patcher.patch_braille_input()
 			braille.handler.enabled = False
 			if braille.handler._cursorBlinkTimer:

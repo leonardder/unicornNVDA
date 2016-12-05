@@ -7,6 +7,7 @@ import tones
 import speech
 import ctypes
 import braille
+import inputCore
 import logging
 logger = logging.getLogger('local_machine')
 
@@ -40,10 +41,17 @@ class LocalMachine(object):
 		speech.beenCanceled = False
 		wx.CallAfter(synth.speak, sequence)
 
-	def braille_write_cells(self, cells):
+	def display(self, cells):
 		if self.remote_braille and braille.handler.display.numCells>0:
 			# We use braille.handler._writeCells since this respects thread safe displays and automatically falls back to noBraille if desired
+			cells = cells + [0] * (braille.handler.displaySize - len(cells))
 			wx.CallAfter(braille.handler._writeCells, cells)
+
+	def braille_input(self, **kwargs):
+		try:
+			inputCore.manager.executeGesture(input.BrailleInputGesture(**kwargs))
+		except inputCore.NoInputGestureAction:
+			pass
 
 	def send_key(self, vk_code=None, extended=None, pressed=None, **kwargs):
 		wx.CallAfter(input.send_key, vk_code, None, extended, pressed)
