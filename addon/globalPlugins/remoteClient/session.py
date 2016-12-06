@@ -15,13 +15,13 @@ class RemoteSession(object):
 		self.remote_braille_name=None
 		self.remote_braille_numCells=0
 
-	def send_braille_info(self):
-		display=braille.handler.display
-		self.transport.send(type="set_braille_info", name=display.name, numCells=display.numCells)
-
 	def handle_braille_info(self, name=None, numCells=0):
 		self.remote_braille_name=name
 		self.remote_braille_numCells=numCells
+
+	def send_braille_info(self):
+		display=braille.handler.display
+		self.transport.send(type="set_braille_info", name=display.name, numCells=display.numCells)
 
 class SlaveSession(RemoteSession):	
 	"""Session that runs on the slave and manages state."""
@@ -74,19 +74,22 @@ class SlaveSession(RemoteSession):
 
 	def handle_braille_info(self, name=None, numCells=0):
 		super(SlaveSession, self).handle_braille_info(name, numCells)
-		newNumCells=min(braille.handler.display.numCells,numCells)
-		if newNumCells:
-			braille.handler.displaySize=newNumCells
-			braille.handler.enabled = bool(newNumCells)
+		currentNumCells=braille.handler.display.numCells
+		braille.handler.displaySize=min(numCells,currentNumCells) if numCells and currentNumCells else max(numCells,currentNumCells)
+		braille.handler.enabled = bool(braille.handler.displaySize)
+
+	def send_braille_info(self):
+		super(SlaveSession, self).send_braille_info()
+		self.handle_braille_info(name=self.remote_braille_name, numCells=self.remote_braille_numCells)
 
 	def add_patch_callbacks(self):
-		patcher_callbacks = (('speak', self.speak), ('beep', self.beep), ('wave', self.playWaveFile), ('cancel_speech', self.cancel_speech), ('display', self.display))
+		patcher_callbacks = (('speak', self.speak), ('beep', self.beep), ('wave', self.playWaveFile), ('cancel_speech', self.cancel_speech), ('display', self.display), ('set_display', self.send_braille_info))
 		for event, callback in patcher_callbacks:
 			self.patcher.register_callback(event, callback)
 		self.patcher.set_last_index_callback(self._get_lastIndex)
 
 	def remove_patch_callbacks(self):
-		patcher_callbacks = (('speak', self.speak), ('beep', self.beep), ('wave', self.playWaveFile), ('cancel_speech', self.cancel_speech), ('display', self.display))
+		patcher_callbacks = (('speak', self.speak), ('beep', self.beep), ('wave', self.playWaveFile), ('cancel_speech', self.cancel_speech), ('display', self.display), ('set_display', self.send_braille_info))
 		for event, callback in patcher_callbacks:
 			self.patcher.unregister_callback(event, callback)
 
@@ -152,7 +155,7 @@ class MasterSession(RemoteSession):
 			self.handle_client_connected(user_id=user)
 
 	def handle_client_connected(self, user_id=None):
-		self.patcher.patch_set_display()
+		self.patcher.patch()
 		if not self.patch_callbacks_added:
 			self.add_patch_callbacks()
 			self.patch_callbacks_added = True
@@ -160,7 +163,7 @@ class MasterSession(RemoteSession):
 		tones.beep(1000, 300)
 
 	def handle_client_disconnected(self, user_id=None):
-		self.patcher.unpatch_set_display()
+		self.patcher.unpatch()
 		if self.patch_callbacks_added:
 			self.remove_patch_callbacks()
 			self.patch_callbacks_added = False
@@ -168,10 +171,6 @@ class MasterSession(RemoteSession):
 
 	def braille_input(self,**kwargs):
 		self.transport.send(type="braille_input", **kwargs)
-
-	def send_braille_info(self):
-		display=braille.handler.display
-		self.transport.send(type="set_braille_info", name=display.name, numCells=display.numCells)
 
 	def send_indexes(self):
 		last = None

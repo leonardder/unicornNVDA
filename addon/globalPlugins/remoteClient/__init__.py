@@ -364,6 +364,11 @@ class GlobalPlugin(GlobalPlugin):
 			if braille.handler._cursorBlinkTimer:
 				braille.handler._cursorBlinkTimer.Stop()
 				braille.handler._cursorBlinkTimer=None
+			if braille.handler.buffer is braille.handler.messageBuffer:
+				braille.handler.buffer.clear()
+				braille.handler.buffer = braille.handler.mainBuffer
+				braille.handler._messageCallLater.Stop()
+				braille.handler._messageCallLater = None
 			self.local_machine.remote_braille=True			
 		elif not state:
 			self.master_session.patcher.unpatch_braille_input()

@@ -8,9 +8,39 @@ import inputCore
 import braille
 import brailleInput
 import scriptHandler
-from logHandler import log
 
-class NVDASlavePatcher(callback_manager.CallbackManager):
+class NVDAPatcher(callback_manager.CallbackManager):
+	"""Base class to manage patching of braille display changes."""
+
+	def __init__(self):
+		super(NVDAPatcher, self).__init__()
+		self.orig_setDisplayByName = None
+
+	def patch_set_display(self):
+		if self.orig_setDisplayByName is not None:
+			return
+		self.orig_setDisplayByName = braille.handler.setDisplayByName
+		braille.handler.setDisplayByName = self.setDisplayByName
+
+	def unpatch_set_display(self):
+		if self.orig_setDisplayByName is None:
+			return
+		braille.handler.setDisplayByName = self.orig_setDisplayByName
+		self.orig_setDisplayByName = None
+
+	def patch(self):
+		self.patch_set_display()
+
+	def unpatch(self):
+		self.unpatch_set_display()
+
+	def setDisplayByName(self, name, isFallback=False):
+		result=self.orig_setDisplayByName(name,isFallback)
+		if result:
+			self.call_callbacks('set_display')
+		return result
+
+class NVDASlavePatcher(NVDAPatcher):
 	"""Class to manage patching of synth, tones, nvwave, and braille."""
 
 	def __init__(self):
@@ -103,12 +133,14 @@ class NVDASlavePatcher(callback_manager.CallbackManager):
 		braille.handler.enabled = bool(braille.handler.displaySize)
 
 	def patch(self):
+		super(NVDASlavePatcher, self).patch()
 		self.patch_synth()
 		self.patch_tones()
 		self.patch_nvwave()
 		self.patch_braille()
 
 	def unpatch(self):
+		super(NVDASlavePatcher, self).unpatch()
 		self.unpatch_synth()
 		self.unpatch_tones()
 		self.unpatch_nvwave()
@@ -147,12 +179,11 @@ class NVDASlavePatcher(callback_manager.CallbackManager):
 	def set_last_index_callback(self, callback):
 		self.last_index_callback = callback
 
-class NVDAMasterPatcher(callback_manager.CallbackManager):
-	"""Class to manage patching of braille input and master braille display changes."""
+class NVDAMasterPatcher(NVDAPatcher):
+	"""Class to manage patching of braille input."""
 
 	def __init__(self):
 		super(NVDAMasterPatcher, self).__init__()
-		self.orig_setDisplayByName = None
 		self.orig_executeGesture = None
 
 	def patch_braille_input(self):
@@ -161,23 +192,20 @@ class NVDAMasterPatcher(callback_manager.CallbackManager):
 		self.orig_executeGesture = inputCore.manager.executeGesture
 		inputCore.manager.executeGesture= self.executeGesture
 
-	def patch_set_display(self):
-		if self.orig_setDisplayByName is not None:
-			return
-		self.orig_setDisplayByName = braille.handler.setDisplayByName
-		braille.handler.setDisplayByName = self.setDisplayByName
-
 	def unpatch_braille_input(self):
 		if self.orig_executeGesture is None:
 			return
 		inputCore.manager.executeGesture = self.orig_executeGesture
 		self.orig_executeGesture = None
 
-	def unpatch_set_display(self):
-		if self.orig_setDisplayByName is None:
-			return
-		braille.handler.setDisplayByName = self.orig_setDisplayByName
-		self.orig_setDisplayByName = None
+	def patch(self):
+		super(NVDAMasterPatcher, self).patch()
+		# We do not patch braille input by default
+
+	def unpatch(self):
+		super(NVDAMasterPatcher, self).unpatch()
+		# To be sure, unpatch braille input
+		self.unpatch_braille_input()
 
 	def executeGesture(self, gesture):
 		if isinstance(gesture,(braille.BrailleDisplayGesture,brailleInput.BrailleInputGesture)):
@@ -216,9 +244,3 @@ class NVDAMasterPatcher(callback_manager.CallbackManager):
 			self.call_callbacks('braille_input', **dict)
 		else:
 			self.orig_executeGesture(gesture)
-
-	def setDisplayByName(self, name, isFallback=False):
-		result=self.orig_setDisplayByName(name,isFallback)
-		if result:
-			self.call_callbacks('set_display')
-		return result
