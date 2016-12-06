@@ -62,6 +62,7 @@ class NVDASlavePatcher(callback_manager.CallbackManager):
 			return
 		self.orig_display = braille.handler._writeCells
 		braille.handler._writeCells = self.display
+		# Braille handler is patched by slave_session
 
 	def unpatch_synth(self):
 		if self.orig_speak is None:
@@ -98,6 +99,8 @@ class NVDASlavePatcher(callback_manager.CallbackManager):
 			return
 		braille.handler._writeCells = self.orig_display
 		self.orig_display = None
+		braille.handler.displaySize=braille.handler.display.numCells
+		braille.handler.enabled = bool(braille.handler.displaySize)
 
 	def patch(self):
 		self.patch_synth()
@@ -204,8 +207,6 @@ class NVDAMasterPatcher(callback_manager.CallbackManager):
 				dict["source"]=gesture.source
 			if hasattr(gesture,"id") and "id" not in dict:
 				dict["id"]=gesture.id
-			if hasattr(gesture,"identifiers") and "identifiers" not in dict:
-				dict["identifiers"]=gesture.identifiers
 			if hasattr(gesture,"dots") and "dots" not in dict:
 				dict["dots"]=gesture.dots
 			if hasattr(gesture,"space") and "space" not in dict:

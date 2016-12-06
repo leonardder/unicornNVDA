@@ -19,9 +19,9 @@ class RemoteSession(object):
 		display=braille.handler.display
 		self.transport.send(type="set_braille_info", name=display.name, numCells=display.numCells)
 
-	def handle_set_braille_info(self, name=None, numCells=0):
-		self.remote_brailleName=name
-		self.remote_brailleNumCells=numCells
+	def handle_braille_info(self, name=None, numCells=0):
+		self.remote_braille_name=name
+		self.remote_braille_numCells=numCells
 
 class SlaveSession(RemoteSession):	
 	"""Session that runs on the slave and manages state."""
@@ -39,7 +39,7 @@ class SlaveSession(RemoteSession):
 		self.patch_callbacks_added = False
 		self.transport.callback_manager.register_callback('msg_channel_joined', self.handle_channel_joined)
 		self.transport.callback_manager.register_callback('msg_set_clipboard_text', self.local_machine.set_clipboard_text)
-		self.transport.callback_manager.register_callback('msg_set_braille_info', self.handle_set_braille_info)
+		self.transport.callback_manager.register_callback('msg_set_braille_info', self.handle_braille_info)
 		self.transport.callback_manager.register_callback('msg_braille_input', self.local_machine.braille_input)
 		self.transport.callback_manager.register_callback('msg_send_SAS', self.local_machine.send_SAS)
 
@@ -72,11 +72,12 @@ class SlaveSession(RemoteSession):
 		if not self.masters:
 			self.patcher.unpatch()
 
-	def handle_set_braille_info(self, name=None, numCells=0):
-		super(SlaveSession, self).handle_set_braille_info(name, numCells)
-		currentNumCells=braille.handler.display.numCells
-		braille.handler.displaySize=numCells 		if currentNumCells==0 else min(currentNumCells,numCells)
-		braille.handler.enabled = bool(braille.handler.displaySize)
+	def handle_braille_info(self, name=None, numCells=0):
+		super(SlaveSession, self).handle_braille_info(name, numCells)
+		newNumCells=min(braille.handler.display.numCells,numCells)
+		if newNumCells:
+			braille.handler.displaySize=newNumCells
+			braille.handler.enabled = bool(newNumCells)
 
 	def add_patch_callbacks(self):
 		patcher_callbacks = (('speak', self.speak), ('beep', self.beep), ('wave', self.playWaveFile), ('cancel_speech', self.cancel_speech), ('display', self.display))
@@ -128,7 +129,7 @@ class MasterSession(RemoteSession):
 		self.transport.callback_manager.register_callback('msg_client_left', self.handle_client_disconnected)
 		self.transport.callback_manager.register_callback('msg_channel_joined', self.handle_channel_joined)
 		self.transport.callback_manager.register_callback('msg_set_clipboard_text', self.local_machine.set_clipboard_text)
-		self.transport.callback_manager.register_callback('msg_set_braille_info', self.handle_set_braille_info)
+		self.transport.callback_manager.register_callback('msg_set_braille_info', self.handle_braille_info)
 		self.transport.callback_manager.register_callback('transport_connected', self.handle_connected)
 		self.transport.callback_manager.register_callback('transport_disconnected', self.handle_disconnected)
 
