@@ -21,7 +21,7 @@ addon_info = {
 	# version
 	"addon_version" : "1.3",
 	# Author(s)
-	"addon_author" : u"Tyler Spivey <tspivey@pcdesk.net>, Christopher Toth <q@q-continuum.net>, Babbage B.V. <info@babbage.com>",
+	"addon_author" : u"Tyler Spivey <tspivey@pcdesk.net>, Christopher Toth <q@q-continuum.net>",
 	# URL for the add-on documentation support
 	"addon_url" : "http://NVDARemote.com",
 	# Documentation file name
