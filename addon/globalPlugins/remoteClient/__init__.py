@@ -69,7 +69,9 @@ class GlobalPlugin(GlobalPlugin):
 		cs = get_config()['controlserver']
 		self.temp_location = os.path.join(shlobj.SHGetFolderPath(0, shlobj.CSIDL_COMMON_APPDATA), 'temp')
 		self.ipc_file = os.path.join(self.temp_location, 'remote.ipc')
-		if not self.check_secure_desktop() and cs['autoconnect']:
+		if globalVars.appArgs.secure:
+			self.handle_secure_desktop()
+		elif cs['autoconnect']:
 			self.perform_autoconnect()
 		self.sd_focused = False
 
@@ -400,9 +402,7 @@ class GlobalPlugin(GlobalPlugin):
 		self.sd_relay.close()
 		self.sd_relay = None
 
-	def check_secure_desktop(self):
-		if not globalVars.appArgs.secure:
-			return False
+	def handle_secure_desktop(self):
 		try:
 			with open(self.ipc_file) as fp:
 				data = json.load(fp)
@@ -413,9 +413,8 @@ class GlobalPlugin(GlobalPlugin):
 			test_socket.connect(('127.0.0.1', port))
 			test_socket.close()
 			self.connect_control(('127.0.0.1', port), channel)
-			return True
 		except:
-			return False
+			pass
 
 	__gestures = {
 		"kb:alt+NVDA+pageDown": "disconnect",
