@@ -125,6 +125,7 @@ class Client(object):
 			return
 		self.connection_type = obj.get('connection_type')
 		self.authenticated = True
+		self.connection_type = obj.get('connection_type', None)
 		clients = []
 		client_ids = []
 		for c in self.server.clients.values():
