@@ -7,6 +7,7 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 import json
 sys.path.remove(sys.path[-1])
 import time
+from logHandler import log
 
 class Server(object):
 	PING_TIME = 300
@@ -118,6 +119,7 @@ class Client(object):
 		return dict(id=self.id, connection_type=self.connection_type)
 
 	def do_join(self, obj):
+		log.debugWarning(obj)
 		password = obj.get('channel', None)
 		if password != self.server.password:
 			self.send(type='error', message='incorrect_password')
