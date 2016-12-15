@@ -6,6 +6,7 @@ import tones
 import braille
 import nvda_patcher
 from collections import defaultdict
+from logHandler import log
 
 class RemoteSession(object):
 
@@ -42,7 +43,9 @@ class SlaveSession(RemoteSession):
 			self.add_patch_callbacks()
 			self.patch_callbacks_added = True
 		self.patcher.orig_beep(1000, 300)
+		log.debugWarning(client)
 		if client['connection_type'] == 'master':
+			log.debugWarning("Do Something!")
 			self.masters[client['id']]['active'] = True
 
 	def handle_channel_joined(self, channel=None, clients=None, origin=None, **kwargs):
