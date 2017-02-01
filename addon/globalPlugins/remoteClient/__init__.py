@@ -1,6 +1,6 @@
 REMOTE_KEY = "kb:f11"
-REMOTE_SHELL_CLASSES=[u'TscShellContainerClass']
 DVCLib='d:\\BabbageDVCAppLib32.dll'
+REMOTE_SHELL_CLASSES=[u'TscShellContainerClass']
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.dirname(__file__)))
