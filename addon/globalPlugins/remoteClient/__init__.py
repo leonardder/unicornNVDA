@@ -366,7 +366,6 @@ class GlobalPlugin(GlobalPlugin):
 		self.disconnect_item.Enable(True)
 		self.connect_item.Enable(False)
 		self.mute_item.Enable(True)
-		self.send_ctrl_alt_del_item.Enable(True)
 		# Translators: Presented when connected to the remote computer.
 		ui.message(_("Connected!"))
 		beep_sequence.beep_sequence((440, 60), (660, 60))
