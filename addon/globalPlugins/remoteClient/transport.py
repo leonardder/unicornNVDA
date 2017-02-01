@@ -18,7 +18,6 @@ PROTOCOL_VERSION = 2
 DVCTYPES=('slave','master')
 
 class Transport(object):
-	p2p=False
 
 	def __init__(self, serializer):
 		self.serializer = serializer
@@ -158,7 +157,6 @@ class RelayTransport(TCPTransport):
 			self.send('generate_key')
 
 class DVCTransport(Transport):
-	p2p=True
 
 	def __init__(self, serializer, lib, name, timeout=60, connection_type=None, protocol_version=PROTOCOL_VERSION):
 		super(DVCTransport, self).__init__(serializer=serializer)
@@ -180,6 +178,7 @@ class DVCTransport(Transport):
 		self.connection_type = connection_type
 		self.protocol_version = protocol_version
 		self	.initialize_lib()
+		self.callback_manager.register_callback('msg_protocol_version', self.handle_p2p)
 
 	def initialize_lib(self):
 		if self.initialized:
@@ -226,13 +225,13 @@ class DVCTransport(Transport):
 			self.read_thread.daemon = True
 			self.read_thread.start()
 		self.error_event.wait()
-		self.disconnect()
+		self._disconnect()
 
 	def handle_data(self, str):
 		data = self.buffer+str
 		self.buffer = ""
 		if data == '':
-			self.disconnect()
+			self._disconnect()
 			return
 		if '\n' not in data:
 			self.buffer += data
@@ -266,7 +265,7 @@ class DVCTransport(Transport):
 		if self.connected:
 			self.queue.put(obj)
 
-	def disconnect(self):
+	def _disconnect(self):
 		if not self.connected:
 			return
 		self.error_event.set()
@@ -286,13 +285,20 @@ class DVCTransport(Transport):
 	def close(self):
 		self.callback_manager.call_callbacks('transport_closing')
 		self.reconnector_thread.running = False
-		self.disconnect()
+		self.send(type='client_left', client=dict(id=-1, connection_type=self.connection_type))
+		self._disconnect()
 		# Terminating in this context is the equivalent for closing the transport
 		res = self.terminate_lib()
 		if res:
 			raise WinError(res)
 		self.closed = True
 		self.reconnector_thread = ConnectorThread(self,connect_delay=10,run_except=WindowsError)
+
+	def handle_p2p(self, version, **kwargs):
+		if version==PROTOCOL_VERSION:
+			self.send(type='client_joined', client=dict(id=-1, connection_type=self.connection_type))
+		else:
+			self.send(type='version_mismatch')
 
 	def _Connected(self):
 		log.info("Connected to remote protocol server")

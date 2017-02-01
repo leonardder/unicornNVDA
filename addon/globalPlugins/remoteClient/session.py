@@ -58,8 +58,6 @@ class SlaveSession(RemoteSession):
 		self.master_display_sizes=[]
 		self.last_client_index = None
 		self.transport.callback_manager.register_callback('msg_index', self.update_index)
-		if self.transport.p2p:
-			self.transport.callback_manager.register_callback('msg_protocol_version', self.handle_p2p)
 		self.transport.callback_manager.register_callback('transport_disconnected', self.handle_disconnected)
 		self.transport.callback_manager.register_callback('transport_closing', self.handle_transport_closing)
 		self.patcher = nvda_patcher.NVDASlavePatcher()
@@ -91,13 +89,6 @@ class SlaveSession(RemoteSession):
 			clients = []
 		for client in clients:
 			self.handle_client_connected(client)
-
-	def handle_p2p(self, version, **kwargs):
-		if self.transport.p2p:
-			if version==PROTOCOL_VERSION:
-				self.transport.send(type='client_joined', client=dict(id=-1, connection_type='slave'))
-			else:
-				self.transport.send(type='version_mismatch')
 
 	def handle_disconnected(self):
 		self.masters.clear()
@@ -182,8 +173,6 @@ class MasterSession(RemoteSession):
 		self.transport.callback_manager.register_callback('msg_channel_joined', self.handle_channel_joined)
 		self.transport.callback_manager.register_callback('msg_set_clipboard_text', self.local_machine.set_clipboard_text)
 		self.transport.callback_manager.register_callback('msg_send_braille_info', self.send_braille_info)
-		if self.transport.p2p:
-			self.transport.callback_manager.register_callback('msg_protocol_version', self.handle_p2p)
 		self.transport.callback_manager.register_callback('transport_connected', self.handle_connected)
 		self.transport.callback_manager.register_callback('transport_disconnected', self.handle_disconnected)
 
@@ -196,13 +185,6 @@ class MasterSession(RemoteSession):
 	def handle_nvda_not_connected(self):
 		speech.cancelSpeech()
 		ui.message(_("Remote NVDA not connected."))
-
-	def handle_p2p(self, version, **kwargs):
-		if self.transport.p2p:
-			if version==PROTOCOL_VERSION:
-				self.transport.send(type='client_joined', client=dict(id=-1, connection_type='master'))
-			else:
-				self.transport.send(type='version_mismatch')
 
 	def handle_connected(self):
 		if self.index_thread is not None:
