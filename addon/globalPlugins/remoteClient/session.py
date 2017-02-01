@@ -200,7 +200,7 @@ class MasterSession(RemoteSession):
 	def handle_p2p(self, version, **kwargs):
 		if self.transport.p2p:
 			if version==PROTOCOL_VERSION:
-				self.transport.send(type='client_joined', client=dict(id=-2, connection_type='master'))
+				self.transport.send(type='client_joined', client=dict(id=-1, connection_type='master'))
 			else:
 				self.transport.send(type='version_mismatch')
 

@@ -262,7 +262,7 @@ class DVCTransport(Transport):
 				return
 
 	def send(self, type, **kwargs):
-		obj = self.serializer.serialize(type=type, **kwargs)
+		obj = self.serializer.serialize(type=type, origin=-1, **kwargs)
 		if self.connected:
 			self.queue.put(obj)
 
