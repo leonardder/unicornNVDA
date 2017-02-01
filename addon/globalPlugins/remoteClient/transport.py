@@ -13,6 +13,7 @@ PROTOCOL_VERSION = 2
 
 
 class Transport(object):
+	p2p=False
 
 	def __init__(self, serializer):
 		self.serializer = serializer
