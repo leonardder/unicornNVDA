@@ -284,7 +284,6 @@ class DVCTransport(Transport):
 	def close(self):
 		self.callback_manager.call_callbacks('transport_closing')
 		self.reconnector_thread.running = False
-		self.send(type='client_left', client=dict(id=-1, connection_type=self.connection_type))
 		self._disconnect()
 		# Terminating in this context is the equivalent for closing the transport
 		res = self.terminate_lib()
@@ -305,12 +304,12 @@ class DVCTransport(Transport):
 
 	def _Disconnected(self,dwDisconnectCode):
 		log.warning("Disconnected from remote protocol server")
-		self.disconnect()
+		self._disconnect()
 		return 0
 
 	def _Terminated(self):
 		log.info("Remote protocol client terminated")
-		self.disconnect()
+		self._disconnect()
 		return 0
 
 	def _OnNewChannelConnection(self):
@@ -325,7 +324,6 @@ class DVCTransport(Transport):
 			self.buffer+=str
 		else:
 			self.handle_data(str.replace("\x00",""))
-		log.debugWarning(" received %s"%str.replace("\x00",""))
 		return 0
 
 	def _OnReadError(self,dwError):
@@ -335,7 +333,7 @@ class DVCTransport(Transport):
 
 	def _OnClose(self):
 		log.info("DVC close request received")
-		self.disconnect()
+		self._disconnect()
 		return 0
 
 class ConnectorThread(threading.Thread):
