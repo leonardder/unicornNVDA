@@ -158,12 +158,11 @@ class RelayTransport(TCPTransport):
 
 class DVCTransport(Transport):
 
-	def __init__(self, serializer, lib, name, timeout=60, connection_type=None, protocol_version=PROTOCOL_VERSION):
+	def __init__(self, serializer, lib, timeout=60, connection_type=None, protocol_version=PROTOCOL_VERSION):
 		super(DVCTransport, self).__init__(serializer=serializer)
 		if connection_type not in DVCTYPES:
 			raise ValueError("Unsupported connection type for DVC connection")
 		log.info("Connecting to DVC as %s" % connection_type)
-		self.name=name
 		self.lib=lib
 		self.closed = False
 		self.initialized = False
