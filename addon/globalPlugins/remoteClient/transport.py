@@ -224,6 +224,11 @@ class DVCTransport(Transport):
 			self.read_thread.daemon = True
 			self.read_thread.start()
 		self.error_event.wait()
+		self.connected = False
+		self.callback_manager.call_callbacks('transport_disconnected')
+		res = self.lib.Close()
+		if res:
+			log.warning(WinError(res))
 		self._disconnect()
 
 	def handle_data(self, str):
@@ -278,8 +283,6 @@ class DVCTransport(Transport):
 		clear_queue(self.queue)
 		if self.connection_type=='slave' and self.read_thread is not None:
 			self.read_thread.join()
-		self.connected = False
-		self.callback_manager.call_callbacks('transport_disconnected')
 
 	def close(self):
 		self.callback_manager.call_callbacks('transport_closing')
@@ -329,10 +332,12 @@ class DVCTransport(Transport):
 	def _OnReadError(self,dwError):
 		log.warning("Error reading from DVC, %d"%dwError)
 		self.error_event.set()
+		self.read_thread.join()
 		return 0
 
 	def _OnClose(self):
 		log.info("DVC close request received")
+		self.callback_manager.call_callbacks('msg_client_joined', client=dict(id=-1, connection_type=self.connection_type))
 		self._disconnect()
 		return 0
 

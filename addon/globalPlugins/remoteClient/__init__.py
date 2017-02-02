@@ -89,9 +89,9 @@ class GlobalPlugin(GlobalPlugin):
 		else:
 			address = address_to_hostport(cs['host'])
 		if cs['connection_type']==0:
-			self.connect_as_slave(address, channel)
+			self.connect_as_dvc_slave() if cs['dvc'] else self.connect_as_slave(address, channel)
 		else:
-			self.connect_as_master(address, channel)
+			self.connect_as_dvc_master() if cs['dvc'] else self.connect_as_master(address, channel)
 
 	def create_menu(self):
 		self.menu = wx.Menu()
@@ -557,5 +557,3 @@ class GlobalPlugin(GlobalPlugin):
 	__gestures = {
 		"kb:alt+NVDA+pageDown": "disconnect",
 	}
-
-

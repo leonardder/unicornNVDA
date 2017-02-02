@@ -175,11 +175,11 @@ class OptionsDialog(wx.Dialog):
 		super(OptionsDialog, self).__init__(parent, id, title=title)
 		main_sizer = wx.BoxSizer(wx.VERTICAL)
 		# Translators: A checkbox in add-on options dialog to set whether remote server is started when NVDA starts.
-		self.autoconnect = wx.CheckBox(self, wx.ID_ANY, label=_("Auto-connect to control server on startup"))
+		self.autoconnect = wx.CheckBox(self, wx.ID_ANY, label=_("Auto-connect on startup"))
 		self.autoconnect.Bind(wx.EVT_CHECKBOX, self.on_autoconnect)
 		main_sizer.Add(self.autoconnect)
 		#Translators: Whether or not to use a relay server when autoconnecting
-		self.client_or_server = wx.RadioBox(self, wx.ID_ANY, choices=(_("Use Remote Control Server"), _("Host Control Server")), style=wx.RA_VERTICAL)
+		self.client_or_server = wx.RadioBox(self, wx.ID_ANY, choices=(_("Use Remote Control Server"), _("Host Control Server"),_("Use a virtual channel")), style=wx.RA_VERTICAL)
 		self.client_or_server.Bind(wx.EVT_RADIOBOX, self.on_client_or_server)
 		self.client_or_server.SetSelection(0)
 		self.client_or_server.Enable(False)
@@ -217,9 +217,9 @@ class OptionsDialog(wx.Dialog):
 		state = bool(self.autoconnect.GetValue())
 		self.client_or_server.Enable(state)
 		self.connection_type.Enable(state)
-		self.key.Enable(state)
-		self.host.Enable(not bool(self.client_or_server.GetSelection()) and state)
-		self.port.Enable(bool(self.client_or_server.GetSelection()) and state)
+		self.key.Enable(self.client_or_server.GetSelection()!=2 and state)
+		self.host.Enable(self.client_or_server.GetSelection()==0 and state)
+		self.port.Enable(self.client_or_server.GetSelection()==1 and state)
 
 	def on_client_or_server(self, evt):
 		evt.Skip()
@@ -228,9 +228,10 @@ class OptionsDialog(wx.Dialog):
 	def set_from_config(self, config):
 		cs = config['controlserver']
 		self_hosted = cs['self_hosted']
+		dvc = cs['dvc']
 		connection_type = cs['connection_type']
 		self.autoconnect.SetValue(cs['autoconnect'])
-		self.client_or_server.SetSelection(int(self_hosted))
+		self.client_or_server.SetSelection(2 if dvc else int(self_hosted))
 		self.connection_type.SetSelection(connection_type)
 		self.host.SetValue(cs['host'])
 		self.port.SetValue(str(cs['port']))
@@ -251,9 +252,11 @@ class OptionsDialog(wx.Dialog):
 	def write_to_config(self, config):
 		cs = config['controlserver']
 		cs['autoconnect'] = self.autoconnect.GetValue()
-		self_hosted = bool(self.client_or_server.GetSelection())
+		self_hosted = self.client_or_server.GetSelection()==1
+		dvc = self.client_or_server.GetSelection()==2
 		connection_type = self.connection_type.GetSelection()
 		cs['self_hosted'] = self_hosted
+		cs['dvc'] = dvc
 		cs['connection_type'] = connection_type
 		if not self_hosted:
 			cs['host'] = self.host.GetValue()

@@ -69,7 +69,6 @@ class SlaveSession(RemoteSession):
 		self.transport.callback_manager.register_callback('msg_braille_input', self.local_machine.braille_input)
 		self.transport.callback_manager.register_callback('msg_send_SAS', self.local_machine.send_SAS)
 
-
 	def get_connection_info(self):
 		hostname, port = self.transport.address
 		key = self.transport.channel
