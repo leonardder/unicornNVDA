@@ -102,6 +102,14 @@ class GlobalPlugin(GlobalPlugin):
 		self.disconnect_item = self.menu.Append(wx.ID_ANY, _("Disconnect"), _("Disconnect from another computer running NVDA Remote Access"))
 		self.disconnect_item.Enable(False)
 		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.on_disconnect_item, self.disconnect_item)
+		# Translators: Item in NVDA Remote submenu to attach a bridge to the current remote session.
+		self.create_bridge_item = self.menu.Append(wx.ID_ANY, _("Create &bridge..."), _("Bridge the current remote session to another server"))
+		self.create_bridge_item.Enable(False)
+		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.do_bridge, self.create_bridge_item)
+		# Translators: Item in NVDA Remote submenu to disconnect a bridge.
+		self.disconnect_bridge_item = self.menu.Append(wx.ID_ANY, _("Disconnect b&ridge"), _("Disconnect an earlier created bridge"))
+		self.disconnect_bridge_item.Enable(False)
+		gui.mainFrame.sysTrayIcon.Bind(wx.EVT_MENU, self.on_disconnect_bridge_item, self.disconnect_bridge_item)
 		# Translators: Menu item in NvDA Remote submenu to mute speech and sounds from the remote computer.
 		self.mute_item = self.menu.Append(wx.ID_ANY, _("Mute remote"), _("Mute speech and sounds from the remote computer"))
 		self.mute_item.SetCheckable(True)
@@ -168,6 +176,10 @@ class GlobalPlugin(GlobalPlugin):
 	def on_disconnect_item(self, evt):
 		evt.Skip()
 		self.disconnect()
+
+	def on_disconnect_bridge_item(self, evt):
+		evt.Skip()
+		self.disconnect_bridge()
 
 	def on_mute_item(self, evt):
 		evt.Skip()
@@ -254,6 +266,18 @@ class GlobalPlugin(GlobalPlugin):
 		self.slave_transport = None
 		self.slave_session = None
 
+	def disconnect_bridge(self):
+		if self.bridge is None and self.bridge_transport is None and self.bridge_server is None:
+			return
+		self.bridge_transport.close()
+		self.bridge_transport = None
+		self.bridge = None
+		if self.bridge_server is not None:
+			self.bridge_server.close()
+			self.bridge_server = None
+		self.disconnect_bridge_item.Enable(False)
+		self.create_bridge_item.Enable(True)
+
 	def on_connected_as_master_failed(self):
 		if self.master_transport.successful_connects == 0:
 			self.disconnect_as_master()
@@ -299,6 +323,34 @@ class GlobalPlugin(GlobalPlugin):
 					self.connect_as_slave(('127.0.0.1', int(dlg.panel.port.GetValue())), channel)
 		gui.runScriptModalDialog(dlg, callback=handle_dlg_complete)
 
+	def do_bridge(self, evt):
+		evt.Skip()
+		last_cons = get_config()['connections']['last_connected']
+		last = ''
+		if last_cons:
+			last = last_cons[-1]
+		# Translators: Title of the create bridge dialog.
+		dlg = dialogs.DirectConnectDialog(parent=gui.mainFrame, id=wx.ID_ANY, title=_("Create bridge"))
+		dlg.connection_type.Enable(False)
+		dlg.panel.host.SetValue(last)
+		dlg.panel.host.SelectAll()
+		if self.server:
+			dlg.client_or_server.SetSelection(0)
+			dlg.client_or_server.Enable(False)
+		def handle_dlg_complete(dlg_result):
+			if dlg_result != wx.ID_OK:
+				return
+			if dlg.client_or_server.GetSelection() == 0: #client
+				server_addr = dlg.panel.host.GetValue()
+				server_addr, port = address_to_hostport(server_addr)
+				channel = dlg.panel.key.GetValue()
+				self.connect_as_bridge((server_addr, port), channel)
+			else: #We want a server
+				channel = dlg.panel.key.GetValue()
+				self.start_bridge_server(int(dlg.panel.port.GetValue()), channel)
+				self.connect_as_bridge(('127.0.0.1', int(dlg.panel.port.GetValue())), channel)
+		gui.runScriptModalDialog(dlg, callback=handle_dlg_complete)
+
 	def on_connected_as_master(self):
 		write_connection_to_config(self.master_transport.address)
 		self.disconnect_item.Enable(True)
@@ -338,6 +390,14 @@ class GlobalPlugin(GlobalPlugin):
 		self.disconnect_item.Enable(True)
 		self.connect_item.Enable(False)
 
+	def connect_as_bridge(self, address, key):
+		transport = RelayTransport(serializer=serializer.JSONSerializer(), address=address, channel=key, connection_type='relay')
+		self.bridge_transport = transport
+		self.bridge_transport.callback_manager.register_callback('transport_connected', self.on_connected_as_bridge)
+		self.bridge_transport.reconnector_thread.start()
+		self.disconnect_bridge_item.Enable(True)
+		self.create_bridge_item.Enable(False)
+
 	def on_connected_as_slave(self):
 		log.info("Control connector connected")
 		beep_sequence.beep_sequence((720, 100), 50, (720, 100), 50, (720, 100))
@@ -347,11 +407,24 @@ class GlobalPlugin(GlobalPlugin):
 		self.copy_link_item.Enable(True)
 		write_connection_to_config(self.slave_transport.address)
 
+	def on_connected_as_bridge(self):
+		log.info("Bridge connector connected")
+		beep_sequence.beep_sequence((550, 100), 50, (550, 100), 50, (550, 100))
+		# Translators: Presented in bridge remote connection when the bridge is created.
+		speech.speakMessage(_("Bridge created"))
+		write_connection_to_config(self.bridge_transport.address)
+
 	def start_control_server(self, server_port, channel):
 		self.server = server.Server(server_port, channel)
 		server_thread = threading.Thread(target=self.server.run)
 		server_thread.daemon = True
 		server_thread.start()
+
+	def start_bridge_server(self, server_port, channel):
+		self.bridge_server = server.Server(server_port, channel)
+		bridge_server_thread = threading.Thread(target=self.server.run)
+		bridge_server_thread.daemon = True
+		bridge_server_thread.start()
 
 	def hook(self):
 		log.debug("Hook thread start")
