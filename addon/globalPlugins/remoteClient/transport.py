@@ -337,7 +337,7 @@ class DVCTransport(Transport):
 
 	def _OnClose(self):
 		log.info("DVC close request received")
-		self.callback_manager.call_callbacks('msg_client_joined', client=dict(id=-1, connection_type=self.connection_type))
+		self.callback_manager.call_callbacks('msg_client_left', client=dict(id=-1))
 		self._disconnect()
 		return 0
 

@@ -1,5 +1,5 @@
 REMOTE_KEY = "kb:f11"
-DVCLib='d:\\BabbageDVCAppLib32.dll'
+DVCLib='d:\\UnicornDVCAppLib32.dll'
 REMOTE_SHELL_CLASSES=[u'TscShellContainerClass']
 import os
 import sys
