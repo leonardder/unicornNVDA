@@ -12,6 +12,7 @@ import serializer
 import server
 import transport
 import socket_utils
+from connection_info import portcheck
 import addonHandler
 addonHandler.initTranslation()
 
@@ -91,9 +92,7 @@ class ServerPanel(wx.Panel):
 	def do_portcheck(self, port):
 		temp_server = server.Server(port=port, password=None)
 		try:
-			req = urllib.urlopen('https://portcheck.nvdaremote.com/port/%s' % port)
-			data = req.read()
-			result = json.loads(data)
+			result = portcheck(port)
 			wx.CallAfter(self.on_get_IP_success, result)
 		except Exception as e:
 			self.on_get_IP_fail(e)

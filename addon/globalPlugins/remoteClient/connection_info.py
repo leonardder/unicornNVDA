@@ -60,3 +60,9 @@ class ConnectionInfo(object):
 		mode = self.mode
 		result += urllib.urlencode(dict(key=self.key, mode=mode))
 		return result
+
+def portcheck(port):
+	req = urllib.urlopen('https://portcheck.nvdaremote.com/port/%s' % port)
+	data = req.read()
+	result = json.loads(data)
+	return result
