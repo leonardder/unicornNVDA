@@ -13,6 +13,7 @@ from ctypes import *
 from ctypes.wintypes import *
 import NVDAHelper
 import win32con
+import regobj
 
 PROTOCOL_VERSION = 2
 DVCTYPES=('slave','master')
@@ -162,6 +163,11 @@ class DVCTransport(Transport):
 		super(DVCTransport, self).__init__(serializer=serializer)
 		if connection_type not in DVCTYPES:
 			raise ValueError("Unsupported connection type for DVC connection")
+		elif connection_type=='master':
+			try:
+				regobj.HKCU.SOFTWARE.Microsoft.get_subkey('Terminal Server Client').Default.Addins.UnicornDVCPlugin
+			except AttributeError:
+				self.callback_manager.call_callbacks('transport_connection_failed')				
 		log.info("Connecting to DVC as %s" % connection_type)
 		self.lib=lib
 		self.closed = False
@@ -223,6 +229,7 @@ class DVCTransport(Transport):
 			self.read_thread = threading.Thread(target=self.lib.Reader)
 			self.read_thread.daemon = True
 			self.read_thread.start()
+		self.transport_connected()
 		self.error_event.wait()
 		self.connected = False
 		self.callback_manager.call_callbacks('transport_disconnected')
@@ -317,7 +324,6 @@ class DVCTransport(Transport):
 
 	def _OnNewChannelConnection(self):
 		log.info("DVC connection initiated from remote protocol server")
-		self.transport_connected()
 		self.send('protocol_version', version=self.protocol_version)		
 		return 0
 
