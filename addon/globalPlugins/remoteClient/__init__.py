@@ -1,5 +1,4 @@
 REMOTE_KEY = "kb:f11"
-DVCLib='d:\\UnicornDVCAppLib32.dll'
 REMOTE_SHELL_CLASSES=[u'TscShellContainerClass']
 import os
 import sys
@@ -47,6 +46,7 @@ from socket_utils import SERVER_PORT, address_to_hostport, hostport_to_address
 import api
 import ssl
 from ctypes import windll
+import regobj
 
 class GlobalPlugin(GlobalPlugin):
 	scriptCategory = _("NVDA Remote")
@@ -78,6 +78,18 @@ class GlobalPlugin(GlobalPlugin):
 			self.perform_autoconnect()
 		self.sd_focused = False
 		self.rs_focused = False
+
+	def _get_unicorn_lib_path(self):
+		try:
+			location = regobj.HKLM.SOFTWARE.Microsoft.Windows.CurrentVersion.Uninstall.UnicornDVC['InstallLocation'].data
+		except AttributeError:
+			# Assume the lib is included into the add-on for now
+			location = os.path.abspath(os.path.dirname(__file__))
+		path=os.path.join(location,'UnicornDVCAppLib32.dll')
+		if os.path.exists(path):
+			return path
+		else:
+			return None
 
 	def perform_autoconnect(self):
 		cs = configuration.get_config()['controlserver']
@@ -370,7 +382,7 @@ class GlobalPlugin(GlobalPlugin):
 		beep_sequence.beep_sequence((440, 60), (660, 60))
 
 	def connect_as_dvc_master(self):
-		transport = DVCTransport(serializer=serializer.JSONSerializer(), lib=windll.LoadLibrary(DVCLib), connection_type='master')
+		transport = DVCTransport(serializer=serializer.JSONSerializer(), lib=windll.LoadLibrary(self.unicorn_lib_path), connection_type='master')
 		self.master_session = MasterSession(transport=transport, local_machine=self.local_machine)
 		transport.callback_manager.register_callback('transport_connected', self.on_connected_as_dvc_master)
 		transport.callback_manager.register_callback('transport_connection_failed', self.on_connected_as_master_failed)
@@ -380,7 +392,7 @@ class GlobalPlugin(GlobalPlugin):
 		self.master_transport.reconnector_thread.start()
 
 	def connect_as_dvc_slave(self):
-		transport = DVCTransport(serializer=serializer.JSONSerializer(), lib=windll.LoadLibrary(DVCLib), connection_type='slave')
+		transport = DVCTransport(serializer=serializer.JSONSerializer(), lib=windll.LoadLibrary(self.unicorn_lib_path), connection_type='slave')
 		self.slave_session = SlaveSession(transport=transport, local_machine=self.local_machine)
 		self.slave_transport = transport
 		self.slave_transport.reconnector_thread.start()
