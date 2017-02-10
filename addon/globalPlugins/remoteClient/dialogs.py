@@ -12,6 +12,7 @@ import serializer
 import server
 import transport
 import socket_utils
+from unicorn import *
 import addonHandler
 addonHandler.initTranslation()
 
@@ -123,7 +124,10 @@ class DirectConnectDialog(wx.Dialog):
 	def __init__(self, parent, id, title):
 		super(DirectConnectDialog, self).__init__(parent, id, title=title)
 		main_sizer = self.main_sizer = wx.BoxSizer(wx.VERTICAL)
-		self.client_or_server = wx.RadioBox(self, wx.ID_ANY, choices=(_("TCP Client"), _("TCP Server"),_("Virtual channel (RDP/ICA/PCoIP)")), style=wx.RA_VERTICAL)
+		choices=[_("TCP Client"), _("TCP Server")]
+		if unicorn_lib_path():
+			choices.append(_("Virtual channel (RDP/ICA/PCoIP)"))
+		self.client_or_server = wx.RadioBox(self, wx.ID_ANY, choices=choices, style=wx.RA_VERTICAL)
 		self.client_or_server.Bind(wx.EVT_RADIOBOX, self.on_client_or_server)
 		self.client_or_server.SetSelection(0)
 		main_sizer.Add(self.client_or_server)
@@ -144,6 +148,7 @@ class DirectConnectDialog(wx.Dialog):
 
 	def on_client_or_server(self, evt):
 		evt.Skip()
+		self.connection_type.Enable(True)
 		if self.panel:
 			self.panel.Destroy()
 			self.panel=None
@@ -153,8 +158,11 @@ class DirectConnectDialog(wx.Dialog):
 		elif self.client_or_server.GetSelection() == 1:
 			self.panel = ServerPanel(parent=self.container)
 			self.container.Enable(True)
-		else:
+		elif self.client_or_server.GetSelection() == 2:
 			self.container.Enable(False)
+			if not unicorn_client():
+				self.connection_type.SetSelection(1)
+				self.connection_type.Enable(False)
 		self.main_sizer.Fit(self)
 
 	def on_ok(self, evt):
@@ -179,7 +187,10 @@ class OptionsDialog(wx.Dialog):
 		self.autoconnect.Bind(wx.EVT_CHECKBOX, self.on_autoconnect)
 		main_sizer.Add(self.autoconnect)
 		#Translators: Whether or not to use a relay server when autoconnecting
-		self.client_or_server = wx.RadioBox(self, wx.ID_ANY, choices=(_("Use Remote Control Server"), _("Host Control Server"),_("Use a virtual channel")), style=wx.RA_VERTICAL)
+		choices=[_("Use Remote Control Server"), _("Host Control Server")]
+		if unicorn_lib_path():
+			choices.append(_("Use a virtual channel"))
+		self.client_or_server = wx.RadioBox(self, wx.ID_ANY, choices=choices, style=wx.RA_VERTICAL)
 		self.client_or_server.Bind(wx.EVT_RADIOBOX, self.on_client_or_server)
 		self.client_or_server.SetSelection(0)
 		self.client_or_server.Enable(False)
@@ -216,7 +227,10 @@ class OptionsDialog(wx.Dialog):
 	def set_controls(self):
 		state = bool(self.autoconnect.GetValue())
 		self.client_or_server.Enable(state)
-		self.connection_type.Enable(state)
+		dvcState=not (self.client_or_server.GetSelection()==2 and not unicorn_client())
+		self.connection_type.Enable(state and dvcState)
+		if state and not dvcState:
+			self.connection_type.SetSelection(0)
 		self.key.Enable(self.client_or_server.GetSelection()!=2 and state)
 		self.host.Enable(self.client_or_server.GetSelection()==0 and state)
 		self.port.Enable(self.client_or_server.GetSelection()==1 and state)

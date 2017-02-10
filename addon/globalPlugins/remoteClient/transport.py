@@ -13,7 +13,7 @@ from ctypes import *
 from ctypes.wintypes import *
 import NVDAHelper
 import win32con
-import regobj
+from unicorn import *
 
 PROTOCOL_VERSION = 2
 DVCTYPES=('slave','master')
@@ -159,17 +159,15 @@ class RelayTransport(TCPTransport):
 
 class DVCTransport(Transport):
 
-	def __init__(self, serializer, lib, timeout=60, connection_type=None, protocol_version=PROTOCOL_VERSION):
+	def __init__(self, serializer, timeout=60, connection_type=None, protocol_version=PROTOCOL_VERSION):
 		super(DVCTransport, self).__init__(serializer=serializer)
+		lib_path=unicorn_lib_path()
 		if connection_type not in DVCTYPES:
 			raise ValueError("Unsupported connection type for DVC connection")
-		elif connection_type=='master':
-			try:
-				regobj.HKCU.SOFTWARE.Microsoft.get_subkey('Terminal Server Client').Default.Addins.UnicornDVCPlugin
-			except AttributeError:
-				self.callback_manager.call_callbacks('transport_connection_failed')				
+		elif not lib_path:
+			raise NotImplementedError("UnicornDVC library not found")
 		log.info("Connecting to DVC as %s" % connection_type)
-		self.lib=lib
+		self.lib=windll.LoadLibrary(lib_path)
 		self.closed = False
 		self.initialized = False
 		#Buffer to hold partially received data
@@ -229,6 +227,9 @@ class DVCTransport(Transport):
 			self.read_thread = threading.Thread(target=self.lib.Reader)
 			self.read_thread.daemon = True
 			self.read_thread.start()
+		elif not unicorn_client(): # Master
+			self.callback_manager.call_callbacks('transport_connection_failed')
+			raise
 		self.transport_connected()
 		self.error_event.wait()
 		self.connected = False

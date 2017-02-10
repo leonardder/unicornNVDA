@@ -45,8 +45,6 @@ import bridge
 from socket_utils import SERVER_PORT, address_to_hostport, hostport_to_address
 import api
 import ssl
-from ctypes import windll
-import regobj
 
 class GlobalPlugin(GlobalPlugin):
 	scriptCategory = _("NVDA Remote")
@@ -78,18 +76,6 @@ class GlobalPlugin(GlobalPlugin):
 			self.perform_autoconnect()
 		self.sd_focused = False
 		self.rs_focused = False
-
-	def _get_unicorn_lib_path(self):
-		try:
-			location = regobj.HKLM.SOFTWARE.Microsoft.Windows.CurrentVersion.Uninstall.UnicornDVC['InstallLocation'].data
-		except AttributeError:
-			# Assume the lib is included into the add-on for now
-			location = os.path.abspath(os.path.dirname(__file__))
-		path=os.path.join(location,'UnicornDVCAppLib32.dll')
-		if os.path.exists(path):
-			return path
-		else:
-			return None
 
 	def perform_autoconnect(self):
 		cs = configuration.get_config()['controlserver']
@@ -382,23 +368,31 @@ class GlobalPlugin(GlobalPlugin):
 		beep_sequence.beep_sequence((440, 60), (660, 60))
 
 	def connect_as_dvc_master(self):
-		transport = DVCTransport(serializer=serializer.JSONSerializer(), lib=windll.LoadLibrary(self.unicorn_lib_path), connection_type='master')
+		transport = DVCTransport(serializer=serializer.JSONSerializer(), connection_type='master')
 		self.master_session = MasterSession(transport=transport, local_machine=self.local_machine)
 		transport.callback_manager.register_callback('transport_connected', self.on_connected_as_dvc_master)
-		transport.callback_manager.register_callback('transport_connection_failed', self.on_connected_as_master_failed)
+		transport.callback_manager.register_callback('transport_connection_failed', self.on_connected_as_dvc_master_failed)
 		transport.callback_manager.register_callback('transport_closing', self.disconnecting_as_master)
 		transport.callback_manager.register_callback('transport_disconnected', self.on_disconnected_as_master)
 		self.master_transport = transport
 		self.master_transport.reconnector_thread.start()
 
 	def connect_as_dvc_slave(self):
-		transport = DVCTransport(serializer=serializer.JSONSerializer(), lib=windll.LoadLibrary(self.unicorn_lib_path), connection_type='slave')
+		transport = DVCTransport(serializer=serializer.JSONSerializer(), connection_type='slave')
 		self.slave_session = SlaveSession(transport=transport, local_machine=self.local_machine)
 		self.slave_transport = transport
 		self.slave_transport.reconnector_thread.start()
 		self.disconnect_item.Enable(True)
 		self.connect_item.Enable(False)
 		transport.callback_manager.register_callback('transport_connection_failed', self.on_connected_as_dvc_slave_failed)
+
+	def on_connected_as_dvc_master_failed(self):
+		if self.master_transport.successful_connects == 0:
+			self.disconnect()
+			# Translators: Title of the connection error dialog.
+			gui.messageBox(parent=gui.mainFrame, caption=_("Error Connecting"),
+			# Translators: Message shown when cannot connect to the remote computer.
+			message=_("Unable to connect to the virtual channel. Please make sure that your client is set up correctly"), style=wx.OK | wx.ICON_WARNING)
 
 	def on_connected_as_dvc_slave_failed(self):
 		if self.slave_transport.successful_connects == 0:
