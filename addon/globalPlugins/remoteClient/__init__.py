@@ -45,6 +45,7 @@ import bridge
 from socket_utils import SERVER_PORT, address_to_hostport, hostport_to_address
 import api
 import ssl
+import callback_manager
 
 class GlobalPlugin(GlobalPlugin):
 	scriptCategory = _("NVDA Remote")
@@ -52,6 +53,7 @@ class GlobalPlugin(GlobalPlugin):
 	def __init__(self, *args, **kwargs):
 		super(GlobalPlugin, self).__init__(*args, **kwargs)
 		self.local_machine = local_machine.LocalMachine()
+		self.callback_manager = callback_manager.CallbackManager()
 		self.slave_session = None
 		self.master_session = None
 		self.create_menu()
@@ -229,6 +231,7 @@ class GlobalPlugin(GlobalPlugin):
 		self.copy_link_item.Enable(False)
 
 	def disconnect_as_master(self):
+		self.callback_manager.call_callbacks('transport_disconnect', connection_type='master')
 		self.master_transport.close()
 		self.master_transport = None
 		self.master_session = None
@@ -251,6 +254,7 @@ class GlobalPlugin(GlobalPlugin):
 		self.key_modified = False
 
 	def disconnect_as_slave(self):
+		self.callback_manager.call_callbacks('transport_disconnect', connection_type='slave')
 		self.slave_transport.close()
 		self.slave_transport = None
 		self.slave_session = None
@@ -317,6 +321,7 @@ class GlobalPlugin(GlobalPlugin):
 		self.hook_thread.daemon = True
 		self.hook_thread.start()
 		self.bindGesture(REMOTE_KEY, "sendKeys")
+		self.callback_manager.call_callbacks('transport_connect', connection_type='master', transport=self.master_transport)
 		# Translators: Presented when connected to the remote computer.
 		ui.message(_("Connected!"))
 		beep_sequence.beep_sequence_async((440, 60), (660, 60))
@@ -347,6 +352,7 @@ class GlobalPlugin(GlobalPlugin):
 	def on_connected_as_slave(self):
 		log.info("Control connector connected")
 		beep_sequence.beep_sequence_async((720, 100), 50, (720, 100), 50, (720, 100))
+		self.callback_manager.call_callbacks('transport_connect', connection_type='slave', transport=self.slave_transport)
 		# Translators: Presented in direct (client to server) remote connection when the controlled computer is ready.
 		speech.speakMessage(_("Connected to control server"))
 		self.push_clipboard_item.Enable(True)
