@@ -230,7 +230,6 @@ class DVCTransport(Transport):
 		elif not unicorn_client(): # Master
 			self.callback_manager.call_callbacks('transport_connection_failed')
 			raise
-		self.transport_connected()
 		self.error_event.wait()
 		self.connected = False
 		self.callback_manager.call_callbacks('transport_disconnected')
@@ -325,6 +324,7 @@ class DVCTransport(Transport):
 
 	def _OnNewChannelConnection(self):
 		log.info("DVC connection initiated from remote protocol server")
+		self.transport_connected()
 		self.send('protocol_version', version=self.protocol_version)		
 		return 0
 

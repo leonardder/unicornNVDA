@@ -366,8 +366,6 @@ class GlobalPlugin(GlobalPlugin):
 		server_thread.start()
 
 	def on_connected_as_dvc_master(self):
-		self.disconnect_item.Enable(True)
-		self.connect_item.Enable(False)
 		self.mute_item.Enable(True)
 		# Translators: Presented when connected to the remote computer.
 		ui.message(_("Connected!"))
@@ -382,6 +380,8 @@ class GlobalPlugin(GlobalPlugin):
 		transport.callback_manager.register_callback('transport_disconnected', self.on_disconnected_as_master)
 		self.master_transport = transport
 		self.master_transport.reconnector_thread.start()
+		self.disconnect_item.Enable(True)
+		self.connect_item.Enable(False)
 
 	def connect_as_dvc_slave(self):
 		transport = DVCTransport(serializer=serializer.JSONSerializer(), connection_type='slave')
@@ -393,6 +393,8 @@ class GlobalPlugin(GlobalPlugin):
 		transport.callback_manager.register_callback('transport_connection_failed', self.on_connected_as_dvc_slave_failed)
 
 	def on_connected_as_dvc_master_failed(self):
+		self.disconnect_item.Enable(False)
+		self.connect_item.Enable(True)
 		if self.master_transport.successful_connects == 0:
 			self.disconnect()
 			# Translators: Title of the connection error dialog.
