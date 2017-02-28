@@ -8,11 +8,13 @@ def unicorn_lib_path():
 	except AttributeError:
 		# Assume the lib is included into the add-on for now
 		location = os.path.abspath(os.path.dirname(__file__))
-	libPath=os.path.join(location,'UnicornDVCAppLib32.dll')
-	if os.path.isfile(libPath):
-		return libPath
-	else:
-		return None
+	horizonLibPath=os.path.join(location,'UnicornDVCAppLibHorizon32.dll')
+	if os.path.isfile(horizonLibPath):
+		return horizonLibPath
+	standardLibPath=os.path.join(location,'UnicornDVCAppLib32.dll')
+	if os.path.isfile(standardLibPath):
+		return standardLibPath
+	return None
 
 def unicorn_client():
 	try:
