@@ -162,11 +162,17 @@ class DVCTransport(Transport):
 	def __init__(self, serializer, timeout=60, connection_type=None, protocol_version=PROTOCOL_VERSION):
 		super(DVCTransport, self).__init__(serializer=serializer)
 		lib_path=unicorn_lib_path()
+		vdp_bridge_path=vdp_rdpvcbridge_path()
 		if connection_type not in DVCTYPES:
 			raise ValueError("Unsupported connection type for DVC connection")
 		elif not lib_path:
 			raise NotImplementedError("UnicornDVC library not found")
 		log.info("Connecting to DVC as %s" % connection_type)
+		# first, try to load the vdp_rdpvcbridge
+		try:
+			vdp_bridge=cdll.LoadLibrary(vdp_bridge_path)
+		except:
+			log.exception('Unable to load VDP RDP VC Bridge')
 		self.lib=windll.LoadLibrary(lib_path)
 		self.closed = False
 		self.initialized = False

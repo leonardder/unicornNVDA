@@ -1,19 +1,28 @@
 import shlobj
 import os
 import regobj
+import sys
 
 def unicorn_lib_path():
 	try:
-		location = regobj.HKLM.SOFTWARE.Microsoft.Windows.CurrentVersion.Uninstall.UnicornDVC['InstallLocation'].data
+		location = os.path.join(regobj.HKLM.SOFTWARE.Microsoft.Windows.CurrentVersion.Uninstall.UnicornDVC['InstallLocation'].data,'lib')
 	except AttributeError:
 		# Assume the lib is included into the add-on for now
 		location = os.path.abspath(os.path.dirname(__file__))
-	horizonLibPath=os.path.join(location,'UnicornDVCAppLibHorizon32.dll')
-	if os.path.isfile(horizonLibPath):
-		return horizonLibPath
 	standardLibPath=os.path.join(location,'UnicornDVCAppLib32.dll')
 	if os.path.isfile(standardLibPath):
 		return standardLibPath
+	return None
+
+def vdp_rdpvcbridge_path():
+	try:
+		location = os.path.join(regobj.HKLM.SOFTWARE.Microsoft.Windows.CurrentVersion.Uninstall.UnicornDVC['InstallLocation'].data,'lib')
+	except AttributeError:
+		# Assume the lib is included into the add-on for now
+		location = os.path.abspath(os.path.dirname(__file__))
+	bridgeLibPath=os.path.join(location,'vdp_rdpvcbridge.dll')
+	if os.path.isfile(bridgeLibPath):
+		return bridgeLibPath
 	return None
 
 def unicorn_client():
