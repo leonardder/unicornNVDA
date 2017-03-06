@@ -192,9 +192,6 @@ class DVCTransport(Transport):
 	def initialize_lib(self):
 		if self.initialized:
 			return
-		res=self.lib.Initialize(DVCTYPES.index(self.connection_type))
-		if res:
-			raise WinError(res)
 		callbacks=("_Connected","_Disconnected","_Terminated","_OnNewChannelConnection","_OnDataReceived","_OnReadError","_OnClose")
 		self.c_Connected=WINFUNCTYPE(LONG)(self._Connected)
 		self.c_Disconnected=WINFUNCTYPE(LONG, DWORD)(self._Disconnected)
@@ -209,6 +206,9 @@ class DVCTransport(Transport):
 			except AttributeError as e:
 				log.error("DVC Client function pointer for %s could not be found"%callback,exc_info=True)
 				raise e
+		res=self.lib.Initialize(c_int(DVCTYPES.index(self.connection_type)))
+		if res:
+			raise WinError(res)
 		self.initialized = True
 
 	def terminate_lib(self):
