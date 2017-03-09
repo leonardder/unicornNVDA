@@ -89,9 +89,9 @@ class GlobalPlugin(GlobalPlugin):
 		else:
 			address = address_to_hostport(cs['host'])
 		if cs['connection_type']==0:
-			self.connect_as_dvc_slave() if cs['dvc'] else self.connect_as_slave(address, channel)
+			self.connect_as_dvc_slave(channel) if cs['dvc'] else self.connect_as_slave(address, channel)
 		else:
-			self.connect_as_dvc_master() if cs['dvc'] else self.connect_as_master(address, channel)
+			self.connect_as_dvc_master(channel) if cs['dvc'] else self.connect_as_master(address, channel)
 
 	def create_menu(self):
 		self.menu = wx.Menu()
@@ -371,8 +371,8 @@ class GlobalPlugin(GlobalPlugin):
 		ui.message(_("Connected!"))
 		beep_sequence.beep_sequence((440, 60), (660, 60))
 
-	def connect_as_dvc_master(self):
-		transport = DVCTransport(serializer=serializer.JSONSerializer(), connection_type='master')
+	def connect_as_dvc_master(self, key):
+		transport = DVCTransport(serializer=serializer.JSONSerializer(), connection_type='master', channel=key)
 		self.master_session = MasterSession(transport=transport, local_machine=self.local_machine)
 		transport.callback_manager.register_callback('transport_connected', self.on_connected_as_dvc_master)
 		transport.callback_manager.register_callback('transport_connection_failed', self.on_connected_as_dvc_master_failed)
@@ -383,8 +383,8 @@ class GlobalPlugin(GlobalPlugin):
 		self.disconnect_item.Enable(True)
 		self.connect_item.Enable(False)
 
-	def connect_as_dvc_slave(self):
-		transport = DVCTransport(serializer=serializer.JSONSerializer(), connection_type='slave')
+	def connect_as_dvc_slave(self, key):
+		transport = DVCTransport(serializer=serializer.JSONSerializer(), connection_type='slave', channel=key)
 		self.slave_session = SlaveSession(transport=transport, local_machine=self.local_machine)
 		self.slave_transport = transport
 		self.slave_transport.reconnector_thread.start()

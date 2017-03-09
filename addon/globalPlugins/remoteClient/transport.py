@@ -159,7 +159,7 @@ class RelayTransport(TCPTransport):
 
 class DVCTransport(Transport):
 
-	def __init__(self, serializer, timeout=60, connection_type=None, protocol_version=PROTOCOL_VERSION):
+	def __init__(self, serializer, timeout=60, connection_type=None, channel=None, protocol_version=PROTOCOL_VERSION):
 		super(DVCTransport, self).__init__(serializer=serializer)
 		lib_path=unicorn_lib_path()
 		vdp_bridge_path=vdp_rdpvcbridge_path()
@@ -174,6 +174,7 @@ class DVCTransport(Transport):
 		except:
 			log.exception('Unable to load VDP RDP VC Bridge')
 		self.lib=windll.LoadLibrary(lib_path)
+		self.channel = channel
 		self.closed = False
 		self.initialized = False
 		#Buffer to hold partially received data
@@ -186,7 +187,6 @@ class DVCTransport(Transport):
 		self.reconnector_thread = ConnectorThread(self,connect_delay=10,run_except=WindowsError)
 		self.connection_type = connection_type
 		self.protocol_version = protocol_version
-		self	.initialize_lib()
 		self.callback_manager.register_callback('msg_protocol_version', self.handle_p2p)
 
 	def initialize_lib(self):
@@ -206,7 +206,7 @@ class DVCTransport(Transport):
 			except AttributeError as e:
 				log.error("DVC Client function pointer for %s could not be found"%callback,exc_info=True)
 				raise e
-		res=self.lib.Initialize(c_int(DVCTYPES.index(self.connection_type)))
+		res=self.lib.Initialize(DWORD(DVCTYPES.index(self.connection_type)),self.channel)
 		if res:
 			raise WinError(res)
 		self.initialized = True
@@ -221,6 +221,7 @@ class DVCTransport(Transport):
 
 	def run(self):
 		self.closed = False
+		self	.initialize_lib()
 		self.error_event.clear()
 		self.queue_thread = threading.Thread(target=self.send_queue)
 		self.queue_thread.daemon = True
