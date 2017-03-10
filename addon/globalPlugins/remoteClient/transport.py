@@ -190,10 +190,9 @@ class DVCTransport(Transport):
 		self.connection_type = connection_type
 		self.protocol_version = protocol_version
 		self.callback_manager.register_callback('msg_protocol_version', self.handle_p2p)
+		self	.register_lib_callbacks()
 
-	def initialize_lib(self):
-		if self.initialized:
-			return
+	def register_lib-callbacks(self):
 		callbacks=("_Connected","_Disconnected","_Terminated","_OnNewChannelConnection","_OnDataReceived","_OnReadError","_OnClose")
 		self.c_Connected=WINFUNCTYPE(LONG)(self._Connected)
 		self.c_Disconnected=WINFUNCTYPE(LONG, DWORD)(self._Disconnected)
@@ -208,6 +207,10 @@ class DVCTransport(Transport):
 			except AttributeError as e:
 				log.error("DVC Client function pointer for %s could not be found"%callback,exc_info=True)
 				raise e
+
+	def initialize_lib(self):
+		if self.initialized:
+			return
 		res=self.lib.Initialize(DWORD(DVCTYPES.index(self.connection_type)),create_string_buffer(self.channel))
 		if res:
 			raise WinError(res)
@@ -223,14 +226,11 @@ class DVCTransport(Transport):
 
 	def run(self):
 		self.closed = False
-		try:
-			self	.initialize_lib()
-		except Exception as e:
-			raise e
 		self.error_event.clear()
 		self.queue_thread = threading.Thread(target=self.send_queue)
 		self.queue_thread.daemon = True
 		self.queue_thread.start()
+		self	.initialize_lib()
 		if self.connection_type=='slave':
 			res=self.lib.Open()
 			if res:
