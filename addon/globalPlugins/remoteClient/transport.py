@@ -186,7 +186,7 @@ class DVCTransport(Transport):
 		self.read_thread = None
 		self.error_event=threading.Event()
 		self.timeout = timeout
-		self.reconnector_thread = ConnectorThread(self,connect_delay=10,run_except=WindowsError)
+		self.reconnector_thread = ConnectorThread(self,run_except=WindowsError)
 		self.connection_type = connection_type
 		self.protocol_version = protocol_version
 		self.callback_manager.register_callback('msg_protocol_version', self.handle_p2p)
@@ -312,7 +312,7 @@ class DVCTransport(Transport):
 		if res:
 			raise WinError(res)
 		self.closed = True
-		self.reconnector_thread = ConnectorThread(self,connect_delay=10,run_except=WindowsError)
+		self.reconnector_thread = ConnectorThread(self,run_except=WindowsError)
 
 	def handle_p2p(self, version, **kwargs):
 		if version==PROTOCOL_VERSION:
