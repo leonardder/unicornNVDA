@@ -165,6 +165,8 @@ class DVCTransport(Transport):
 		vdp_bridge_path=vdp_rdpvcbridge_path()
 		if connection_type not in DVCTYPES:
 			raise ValueError("Unsupported connection type for DVC connection")
+		elif not isinstance(channel,str):
+			raise ValueError("Invalid key provided")
 		elif not lib_path:
 			raise NotImplementedError("UnicornDVC library not found")
 		log.info("Connecting to DVC as %s" % connection_type)
@@ -206,7 +208,7 @@ class DVCTransport(Transport):
 			except AttributeError as e:
 				log.error("DVC Client function pointer for %s could not be found"%callback,exc_info=True)
 				raise e
-		res=self.lib.Initialize(DWORD(DVCTYPES.index(self.connection_type)),self.channel)
+		res=self.lib.Initialize(DWORD(DVCTYPES.index(self.connection_type)),create_string_buffer(self.channel))
 		if res:
 			raise WinError(res)
 		self.initialized = True
@@ -221,7 +223,10 @@ class DVCTransport(Transport):
 
 	def run(self):
 		self.closed = False
-		self	.initialize_lib()
+		try:
+			self	.initialize_lib()
+		except Exception as e:
+			raise e
 		self.error_event.clear()
 		self.queue_thread = threading.Thread(target=self.send_queue)
 		self.queue_thread.daemon = True
