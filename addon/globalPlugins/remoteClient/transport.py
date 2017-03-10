@@ -349,9 +349,9 @@ class DVCTransport(Transport):
 		return 0
 
 	def _OnReadError(self,dwError):
+		# Note, this is called from self.read_thread
 		log.warning("Error reading from DVC, %d"%dwError)
 		self.error_event.set()
-		self.read_thread.join()
 		return 0
 
 	def _OnClose(self):
