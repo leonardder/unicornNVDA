@@ -287,16 +287,15 @@ class GlobalPlugin(GlobalPlugin):
 		def handle_dlg_complete(dlg_result):
 			if dlg_result != wx.ID_OK:
 				return
+			channel = dlg.panel.key.GetValue()
 			if dlg.client_or_server.GetSelection() == 0: #client
 				server_addr = dlg.panel.host.GetValue()
 				server_addr, port = address_to_hostport(server_addr)
-				channel = dlg.panel.key.GetValue()
 				if dlg.connection_type.GetSelection() == 0:
 					self.connect_as_master((server_addr, port), channel)
 				else:
 					self.connect_as_slave((server_addr, port), channel)
 			elif dlg.client_or_server.GetSelection() == 1: #We want a server
-				channel = dlg.panel.key.GetValue()
 				self.start_control_server(int(dlg.panel.port.GetValue()), channel)
 				if dlg.connection_type.GetSelection() == 0:
 					self.connect_as_master(('127.0.0.1', int(dlg.panel.port.GetValue())), channel)
@@ -304,9 +303,9 @@ class GlobalPlugin(GlobalPlugin):
 					self.connect_as_slave(('127.0.0.1', int(dlg.panel.port.GetValue())), channel)
 			elif dlg.client_or_server.GetSelection() == 2:
 				if dlg.connection_type.GetSelection() == 0:
-					self.connect_as_dvc_master()
+					self.connect_as_dvc_master(channel)
 				else:
-					self.connect_as_dvc_slave()
+					self.connect_as_dvc_slave(channel)
 		gui.runScriptModalDialog(dlg, callback=handle_dlg_complete)
 
 	def on_connected_as_master(self):

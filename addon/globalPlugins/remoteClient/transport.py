@@ -157,25 +157,15 @@ class RelayTransport(TCPTransport):
 		else:
 			self.send('generate_key')
 
-class DVCTransport(Transport):
+class DVCTransport(Transport,UnicornCallbackHandler):
 
 	def __init__(self, serializer, timeout=60, connection_type=None, channel=None, protocol_version=PROTOCOL_VERSION):
-		super(DVCTransport, self).__init__(serializer=serializer)
-		lib_path=unicorn_lib_path()
-		vdp_bridge_path=vdp_rdpvcbridge_path()
+		Transport.__init__(self,serializer=serializer)
+		UnicornCallbackHandler.__init__(self)
 		if connection_type not in DVCTYPES:
 			raise ValueError("Unsupported connection type for DVC connection")
-		elif not isinstance(channel,str):
-			raise ValueError("Invalid key provided")
-		elif not lib_path:
-			raise NotImplementedError("UnicornDVC library not found")
 		log.info("Connecting to DVC as %s" % connection_type)
-		# first, try to load the vdp_rdpvcbridge
-		try:
-			vdp_bridge=cdll.LoadLibrary(vdp_bridge_path)
-		except:
-			log.exception('Unable to load VDP RDP VC Bridge')
-		self.lib=windll.LoadLibrary(lib_path)
+		self.lib=Unicorn(self)
 		self.channel = channel
 		self.closed = False
 		self.initialized = False
@@ -184,29 +174,13 @@ class DVCTransport(Transport):
 		self.queue = Queue.Queue()
 		self.queue_thread = None
 		self.read_thread = None
-		self.error_event=threading.Event()
+		self.interrupt_event=threading.Event()
 		self.timeout = timeout
 		self.reconnector_thread = ConnectorThread(self,run_except=WindowsError)
 		self.connection_type = connection_type
 		self.protocol_version = protocol_version
 		self.callback_manager.register_callback('msg_protocol_version', self.handle_p2p)
-		self	.register_lib_callbacks()
-
-	def register_lib-callbacks(self):
-		callbacks=("_Connected","_Disconnected","_Terminated","_OnNewChannelConnection","_OnDataReceived","_OnReadError","_OnClose")
-		self.c_Connected=WINFUNCTYPE(LONG)(self._Connected)
-		self.c_Disconnected=WINFUNCTYPE(LONG, DWORD)(self._Disconnected)
-		self.c_Terminated=WINFUNCTYPE(LONG)(self._Terminated)
-		self.c_OnNewChannelConnection=WINFUNCTYPE(LONG)(self._OnNewChannelConnection)
-		self.c_OnDataReceived=WINFUNCTYPE(LONG,ULONG,POINTER(c_char))(self._OnDataReceived)
-		self.c_OnReadError=WINFUNCTYPE(LONG,DWORD)(self._OnReadError)
-		self.c_OnClose=WINFUNCTYPE(LONG)(self._OnClose)
-		for callback in callbacks:
-			try:
-				NVDAHelper._setDllFuncPointer(self.lib,callback,getattr(self,"c%s"%callback))
-			except AttributeError as e:
-				log.error("DVC Client function pointer for %s could not be found"%callback,exc_info=True)
-				raise e
+		self	.initialize_lib()
 
 	def initialize_lib(self):
 		if self.initialized:
@@ -226,28 +200,23 @@ class DVCTransport(Transport):
 
 	def run(self):
 		self.closed = False
-		self.error_event.clear()
-		self.queue_thread = threading.Thread(target=self.send_queue)
-		self.queue_thread.daemon = True
-		self.queue_thread.start()
-		self	.initialize_lib()
-		if self.connection_type=='slave':
-			res=self.lib.Open()
-			if res:
+		self.interrupt_event.clear()
+		res=self.lib.Open()
+		if res:
+			if res in (1,87):
 				self.callback_manager.call_callbacks('transport_connection_failed')
-				raise WinError(res)
+			raise WinError(res)		
+		if self.connection_type=='slave':
 			self.read_thread = threading.Thread(target=self.lib.Reader)
 			self.read_thread.daemon = True
 			self.read_thread.start()
 		elif not unicorn_client(): # Master
 			self.callback_manager.call_callbacks('transport_connection_failed')
-			raise
-		self.error_event.wait()
-		self.connected = False
-		self.callback_manager.call_callbacks('transport_disconnected')
-		res = self.lib.Close()
-		if res:
-			log.warning(WinError(res))
+			raise WinError(res)
+		self.queue_thread = threading.Thread(target=self.send_queue)
+		self.queue_thread.daemon = True
+		self.queue_thread.start()
+		self.interrupt_event.wait()
 		self._disconnect()
 
 	def handle_data(self, str):
@@ -278,7 +247,7 @@ class DVCTransport(Transport):
 			if item is None:
 				return
 			strbuf=create_string_buffer(item)
-			res=self.lib.Write(sizeof(strbuf),strbuf)
+			res=self.lib.Write(sizeof(strbuf),cast(strbuf,POINTER(BYTE)))
 			if res:
 				log.warning(WinError(res))
 				return
@@ -291,10 +260,10 @@ class DVCTransport(Transport):
 	def _disconnect(self):
 		if not self.connected:
 			return
-		self.error_event.set()
+		self.interrupt_event.set()
 		# Closing in this context is the equivalent for disconnecting the transport
 		res = self.lib.Close()
-		if res:
+		if res not in (0,21):
 			log.warning(WinError(res))
 		if self.queue_thread is not None:
 			self.queue.put(None)
@@ -302,6 +271,8 @@ class DVCTransport(Transport):
 		clear_queue(self.queue)
 		if self.connection_type=='slave' and self.read_thread is not None:
 			self.read_thread.join()
+		self.connected = False
+		self.callback_manager.call_callbacks('transport_disconnected')
 
 	def close(self):
 		self.callback_manager.call_callbacks('transport_closing')
@@ -340,8 +311,9 @@ class DVCTransport(Transport):
 		self.send('protocol_version', version=self.protocol_version)		
 		return 0
 
-	def _OnDataReceived(self,cbSize,data):
-		str="".join(data[i] for i in xrange(cbSize))
+	def _OnDataReceived(self,cbSize,pBuffer):
+		pBuffer=cast(pBuffer,POINTER(c_char))
+		str="".join(pBuffer[i] for i in xrange(cbSize))
 		if "\x00" not in str:
 			self.buffer+=str
 		else:
@@ -351,7 +323,7 @@ class DVCTransport(Transport):
 	def _OnReadError(self,dwError):
 		# Note, this is called from self.read_thread
 		log.warning("Error reading from DVC, %d"%dwError)
-		self.error_event.set()
+		self.interrupt_event.set()
 		return 0
 
 	def _OnClose(self):
