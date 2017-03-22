@@ -82,20 +82,20 @@ class Unicorn(object):
 		self.registerFunctions()
 
 	def registerCallbacks(self, callbackHandler):
-		callbacks=("_Connected","_Disconnected","_Terminated","_OnNewChannelConnection","_OnDataReceived","_OnReadError","_OnClose")
+		callbacks=("Connected","Disconnected","Terminated","OnNewChannelConnection","OnDataReceived","OnReadError","OnClose")
 		for callback in callbacks:
 			try:
-				_setDllFuncPointer(self.lib,callback,getattr(callbackHandler,"c%s"%callback))
+				_setDllFuncPointer(self.lib,'_Unicorn_%s'%callback,getattr(callbackHandler,"c_%s"%callback))
 			except AttributeError as e:
 				raise AttributeError("DVC Client function pointer for %s could not be found"%callback)
 
 	def registerFunctions(self):
-		self.Initialize=WINFUNCTYPE(DWORD,DWORD,c_char_p)(('Initialize',self.lib),((1,'connectionType'),(1,'channelName')))
-		self.Open=WINFUNCTYPE(DWORD)(('Open',self.lib))
-		self.Write=WINFUNCTYPE(DWORD,ULONG,POINTER(BYTE))(('Write',self.lib),((1,'cbSize'),(1,'pBuffer')))
-		self.Reader=WINFUNCTYPE(DWORD)(('Reader',self.lib))
-		self.Close=WINFUNCTYPE(DWORD)(('Close',self.lib))
-		self.Terminate=WINFUNCTYPE(DWORD)(('Terminate',self.lib))
+		self.Initialize=WINFUNCTYPE(DWORD,DWORD,c_char_p)(('Unicorn_Initialize',self.lib),((1,'connectionType'),(1,'channelName')))
+		self.Open=WINFUNCTYPE(DWORD)(('Unicorn_Open',self.lib))
+		self.Write=WINFUNCTYPE(DWORD,ULONG,POINTER(BYTE))(('Unicorn_Write',self.lib),((1,'cbSize'),(1,'pBuffer')))
+		self.Reader=WINFUNCTYPE(DWORD)(('Unicorn_Reader',self.lib))
+		self.Close=WINFUNCTYPE(DWORD)(('Unicorn_Close',self.lib))
+		self.Terminate=WINFUNCTYPE(DWORD)(('Unicorn_Terminate',self.lib))
 
 class UnicornCallbackHandler(object):
 
