@@ -173,7 +173,6 @@ class DVCTransport(Transport,UnicornCallbackHandler):
 		self.buffer = ""
 		self.queue = Queue.Queue()
 		self.queue_thread = None
-		self.read_thread = None
 		self.interrupt_event=threading.Event()
 		self.timeout = timeout
 		self.reconnector_thread = ConnectorThread(self,run_except=WindowsError)
@@ -206,17 +205,14 @@ class DVCTransport(Transport,UnicornCallbackHandler):
 			if res in (1,87):
 				self.callback_manager.call_callbacks('transport_connection_failed')
 			raise WinError(res)		
-		if self.connection_type=='slave':
-			self.read_thread = threading.Thread(target=self.lib.Reader)
-			self.read_thread.daemon = True
-			self.read_thread.start()
-		elif not unicorn_client(): # Master
+		if self.connection_type=='master' and not unicorn_client(): # Master
 			self.callback_manager.call_callbacks('transport_connection_failed')
 			raise WinError(res)
 		self.queue_thread = threading.Thread(target=self.send_queue)
 		self.queue_thread.daemon = True
 		self.queue_thread.start()
 		self.interrupt_event.wait()
+		self.callback_manager.call_callbacks('transport_disconnected')
 		self._disconnect()
 
 	def handle_data(self, str):
@@ -269,10 +265,7 @@ class DVCTransport(Transport,UnicornCallbackHandler):
 			self.queue.put(None)
 			self.queue_thread.join()
 		clear_queue(self.queue)
-		if self.connection_type=='slave' and self.read_thread is not None:
-			self.read_thread.join()
 		self.connected = False
-		self.callback_manager.call_callbacks('transport_disconnected')
 
 	def close(self):
 		self.callback_manager.call_callbacks('transport_closing')
@@ -321,7 +314,6 @@ class DVCTransport(Transport,UnicornCallbackHandler):
 		return 0
 
 	def _OnReadError(self,dwError):
-		# Note, this is called from self.read_thread
 		log.warning("Error reading from DVC, %d"%dwError)
 		self.interrupt_event.set()
 		return 0

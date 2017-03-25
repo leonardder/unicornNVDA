@@ -75,7 +75,6 @@ class Unicorn(object):
 		self.Initialize=None
 		self.Open=None
 		self.Write=None
-		self.Reader=None
 		self.Close=None
 		self.Terminate=None
 		self.registerCallbacks(callbackHandler)
@@ -93,7 +92,6 @@ class Unicorn(object):
 		self.Initialize=WINFUNCTYPE(DWORD,DWORD,c_char_p)(('Unicorn_Initialize',self.lib),((1,'connectionType'),(1,'channelName')))
 		self.Open=WINFUNCTYPE(DWORD)(('Unicorn_Open',self.lib))
 		self.Write=WINFUNCTYPE(DWORD,ULONG,POINTER(BYTE))(('Unicorn_Write',self.lib),((1,'cbSize'),(1,'pBuffer')))
-		self.Reader=WINFUNCTYPE(DWORD)(('Unicorn_Reader',self.lib))
 		self.Close=WINFUNCTYPE(DWORD)(('Unicorn_Close',self.lib))
 		self.Terminate=WINFUNCTYPE(DWORD)(('Unicorn_Terminate',self.lib))
 
