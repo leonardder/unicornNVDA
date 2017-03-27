@@ -167,7 +167,7 @@ class DVCTransport(Transport,UnicornCallbackHandler):
 		log.info("Connecting to DVC as %s" % connection_type)
 		self.lib=Unicorn(self)
 		self.channel = channel
-		self.closed = False
+		self.opened = False
 		self.initialized = False
 		#Buffer to hold partially received data
 		self.buffer = ""
@@ -198,7 +198,6 @@ class DVCTransport(Transport,UnicornCallbackHandler):
 		self.initialized = False
 
 	def run(self):
-		self.closed = False
 		self.interrupt_event.clear()
 		res=self.lib.Open()
 		if res:
@@ -208,6 +207,7 @@ class DVCTransport(Transport,UnicornCallbackHandler):
 		if self.connection_type=='master' and not unicorn_client(): # Master
 			self.callback_manager.call_callbacks('transport_connection_failed')
 			raise WinError(res)
+		self.opened = True
 		self.queue_thread = threading.Thread(target=self.send_queue)
 		self.queue_thread.daemon = True
 		self.queue_thread.start()
@@ -254,7 +254,7 @@ class DVCTransport(Transport,UnicornCallbackHandler):
 			self.queue.put(obj)
 
 	def _disconnect(self):
-		if not self.connected:
+		if not self.connected and not self.opened:
 			return
 		self.interrupt_event.set()
 		# Closing in this context is the equivalent for disconnecting the transport
@@ -266,6 +266,7 @@ class DVCTransport(Transport,UnicornCallbackHandler):
 			self.queue_thread.join()
 		clear_queue(self.queue)
 		self.connected = False
+		self.opened = False
 
 	def close(self):
 		self.callback_manager.call_callbacks('transport_closing')
@@ -275,7 +276,6 @@ class DVCTransport(Transport,UnicornCallbackHandler):
 		res = self.terminate_lib()
 		if res:
 			raise WinError(res)
-		self.closed = True
 		self.reconnector_thread = ConnectorThread(self,run_except=WindowsError)
 
 	def handle_p2p(self, version, **kwargs):

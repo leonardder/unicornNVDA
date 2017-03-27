@@ -1,6 +1,8 @@
-import shlobj
 import os
-import _winreg
+try:
+	import winreg
+except:
+	import _winreg as winreg
 import sys
 from ctypes import *
 from ctypes.wintypes import *
@@ -11,8 +13,8 @@ CTYPE_CLIENT=1
 
 def unicorn_lib_path():
 	try:
-		with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\UnicornDVC",0,_winreg.KEY_READ|_winreg.KEY_WOW64_32KEY) as k:
-			location = os.path.join(_winreg.QueryValueEx(k,"InstallLocation")[0],'lib64' if ARCHITECTURE==64 else 'lib')
+		with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\UnicornDVC",0,winreg.KEY_READ|winreg.KEY_WOW64_32KEY) as k:
+			location = os.path.join(winreg.QueryValueEx(k,"InstallLocation")[0],'lib64' if ARCHITECTURE==64 else 'lib')
 	except WindowsError:
 		# Assume the lib is in the current directory
 		location = os.path.abspath(os.path.dirname(__file__))
@@ -23,8 +25,8 @@ def unicorn_lib_path():
 
 def vdp_rdpvcbridge_path():
 	try:
-		with _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE,"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\UnicornDVC",0,_winreg.KEY_READ|_winreg.KEY_WOW64_32KEY) as k:
-			location = os.path.join(_winreg.QueryValueEx(k,"InstallLocation")[0],'lib64' if ARCHITECTURE==64 else 'lib')
+		with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\UnicornDVC",0,winreg.KEY_READ|winreg.KEY_WOW64_32KEY) as k:
+			location = os.path.join(winreg.QueryValueEx(k,"InstallLocation")[0],'lib64' if ARCHITECTURE==64 else 'lib')
 	except WindowsError:
 		# Assume the lib is in the current directory
 		location = os.path.abspath(os.path.dirname(__file__))
@@ -35,7 +37,7 @@ def vdp_rdpvcbridge_path():
 
 def unicorn_client():
 	try:
-		return bool(_winreg.OpenKey(_winreg.HKEY_CURRENT_USER,"SOFTWARE\Microsoft\Terminal Server Client\Default\Addins\UnicornDVCPlugin"))
+		return bool(winreg.OpenKey(winreg.HKEY_CURRENT_USER,"SOFTWARE\\Microsoft\\Terminal Server Client\\Default\\Addins\\UnicornDVCPlugin"))
 	except WindowsError:
 		return False
 
