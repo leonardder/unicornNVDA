@@ -358,6 +358,11 @@ class GlobalPlugin(GlobalPlugin):
 		self.copy_link_item.Enable(True)
 		configuration.write_connection_to_config(self.slave_transport.address)
 
+	def on_connected_as_dvc_slave(self):
+		log.info("Control connector connected")
+		self.callback_manager.call_callbacks('transport_connect', connection_type='slave', transport=self.slave_transport)
+		self.push_clipboard_item.Enable(True)
+
 	def start_control_server(self, server_port, channel):
 		self.server = server.Server(server_port, channel)
 		server_thread = threading.Thread(target=self.server.run)
@@ -366,6 +371,9 @@ class GlobalPlugin(GlobalPlugin):
 
 	def on_connected_as_dvc_master(self):
 		self.mute_item.Enable(True)
+		self.push_clipboard_item.Enable(True)
+		self.send_ctrl_alt_del_item.Enable(True)
+		self.callback_manager.call_callbacks('transport_connect', connection_type='master', transport=self.master_transport)
 		# Translators: Presented when connected to the remote computer.
 		ui.message(_("Connected!"))
 		beep_sequence.beep_sequence((440, 60), (660, 60))
@@ -386,6 +394,7 @@ class GlobalPlugin(GlobalPlugin):
 		transport = DVCTransport(serializer=serializer.JSONSerializer(), connection_type='slave', channel=key)
 		self.slave_session = SlaveSession(transport=transport, local_machine=self.local_machine)
 		self.slave_transport = transport
+		self.slave_transport.callback_manager.register_callback('transport_connected', self.on_connected_as_dvc_slave)
 		self.slave_transport.reconnector_thread.start()
 		self.disconnect_item.Enable(True)
 		self.connect_item.Enable(False)
