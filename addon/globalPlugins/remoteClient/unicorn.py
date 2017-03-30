@@ -18,7 +18,7 @@ def unicorn_lib_path():
 	except WindowsError:
 		# Assume the lib is in the current directory
 		location = os.path.abspath(os.path.dirname(__file__))
-	standardLibPath=os.path.join(location,'UnicornDVCAppLib%s.dll'%ARCHITECTURE)
+	standardLibPath=os.path.join(location,'UnicornDVCAppLib.dll')
 	if os.path.isfile(standardLibPath):
 		return standardLibPath
 	return None
@@ -109,22 +109,22 @@ class UnicornCallbackHandler(object):
 		self.c_OnClose=WINFUNCTYPE(DWORD)(self._OnClose)
 
 	def _Connected(self):
-		return 0
+		raise NotImplementedError
 
 	def _Disconnected(self,dwDisconnectCode):
-		return 0
+		raise NotImplementedError
 
 	def _Terminated(self):
-		return 0
+		raise NotImplementedError
 
 	def _OnNewChannelConnection(self):
-		return 0
+		raise NotImplementedError
 
 	def _OnDataReceived(self,cbSize,data):
-		return 0
+		raise NotImplementedError
 
 	def _OnReadError(self,dwError):
-		return 0
+		raise NotImplementedError
 
 	def _OnClose(self):
-		return 0
+		raise NotImplementedError
