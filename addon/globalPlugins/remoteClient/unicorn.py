@@ -20,7 +20,7 @@ def unicorn_lib_path():
 		location = os.path.abspath(os.path.dirname(__file__))
 	standardLibPath=os.path.join(location,'UnicornDVCAppLib.dll')
 	if os.path.isfile(standardLibPath):
-		return standardLibPath
+		return str(standardLibPath)
 	return None
 
 def vdp_rdpvcbridge_path():
@@ -40,10 +40,6 @@ def unicorn_client():
 		return bool(winreg.OpenKey(winreg.HKEY_CURRENT_USER,"SOFTWARE\\Microsoft\\Terminal Server Client\\Default\\Addins\\UnicornDVCPlugin"))
 	except WindowsError:
 		return False
-
-# Utility function borrowed from NVDA to point an exported function pointer in a dll  to a ctypes wrapped python function
-def _setDllFuncPointer(dll,name,cfunc):
-	cast(getattr(dll,name),POINTER(c_void_p)).contents.value=cast(cfunc,c_void_p).value
 
 class Unicorn(object):
 	"""Class to facilitate DVC communication using the Unicorn DVC library"""
@@ -79,16 +75,14 @@ class Unicorn(object):
 		self.Write=None
 		self.Close=None
 		self.Terminate=None
-		self.registerCallbacks(callbackHandler)
+		self.SetCallbacks=None
 		self.registerFunctions()
+		self.registerCallbacks(callbackHandler)
 
 	def registerCallbacks(self, callbackHandler):
 		callbacks=("Connected","Disconnected","Terminated","OnNewChannelConnection","OnDataReceived","OnReadError","OnClose")
-		for callback in callbacks:
-			try:
-				_setDllFuncPointer(self.lib,'_Unicorn_%s'%callback,getattr(callbackHandler,"c_%s"%callback))
-			except AttributeError as e:
-				raise AttributeError("DVC Client function pointer for %s could not be found"%callback)
+		callbackPointers=(cast(getattr(callbackHandler,"c_%s"%callback),POINTER(c_void_p)) for callback in callbacks)
+		self.SetCallbacks(*callbackPointers)
 
 	def registerFunctions(self):
 		self.Initialize=WINFUNCTYPE(DWORD,DWORD,c_char_p)(('Unicorn_Initialize',self.lib),((1,'connectionType'),(1,'channelName')))
@@ -96,6 +90,7 @@ class Unicorn(object):
 		self.Write=WINFUNCTYPE(DWORD,ULONG,POINTER(BYTE))(('Unicorn_Write',self.lib),((1,'cbSize'),(1,'pBuffer')))
 		self.Close=WINFUNCTYPE(DWORD)(('Unicorn_Close',self.lib))
 		self.Terminate=WINFUNCTYPE(DWORD)(('Unicorn_Terminate',self.lib))
+		self.SetCallbacks=WINFUNCTYPE(c_void_p,POINTER(c_void_p),POINTER(c_void_p),POINTER(c_void_p),POINTER(c_void_p),POINTER(c_void_p),POINTER(c_void_p),POINTER(c_void_p))(('Unicorn_SetCallbacks',self.lib),((1,'_Connected'),(1,'_Disconnected'),(1,'_Terminated'),(1,'OnNewChannelConnection'),(1,'OnDataReceived'),(1,'OnReadError'),(1,'OnClose')))
 
 class UnicornCallbackHandler(object):
 
