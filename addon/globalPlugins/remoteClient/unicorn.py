@@ -63,7 +63,7 @@ class Unicorn(object):
 						self.vdp_bridge=None
 		# Load Unicorn
 		try:
-			self.lib=getattr(windll,'UnicornDVCAppLib%s'%ARCHITECTURE)
+			self.lib=windll.UnicornDVCAppLib
 		except WindowsError:
 			if not lib_path:
 				raise RuntimeError("UnicornDVC library not found")

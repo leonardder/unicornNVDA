@@ -248,8 +248,8 @@ class DVCTransport(Transport,UnicornCallbackHandler):
 				log.warning(WinError(res))
 				return
 
-	def send(self, type, **kwargs):
-		obj = self.serializer.serialize(type=type, origin=-1, **kwargs)
+	def send(self, type, origin=None, **kwargs):
+		obj = self.serializer.serialize(type=type, origin=origin or -1, **kwargs)
 		if self.connected:
 			self.queue.put(obj)
 
