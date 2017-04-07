@@ -85,9 +85,9 @@ class Unicorn(object):
 		self.SetCallbacks(*callbackPointers)
 
 	def registerFunctions(self):
-		self.Initialize=WINFUNCTYPE(DWORD,DWORD,c_char_p)(('Unicorn_Initialize',self.lib),((1,'connectionType'),(1,'channelName')))
+		self.Initialize=WINFUNCTYPE(DWORD,c_uint8,c_char_p)(('Unicorn_Initialize',self.lib),((1,'connectionType'),(1,'channelName')))
 		self.Open=WINFUNCTYPE(DWORD)(('Unicorn_Open',self.lib))
-		self.Write=WINFUNCTYPE(DWORD,ULONG,POINTER(BYTE))(('Unicorn_Write',self.lib),((1,'cbSize'),(1,'pBuffer')))
+		self.Write=WINFUNCTYPE(DWORD,DWORD,POINTER(BYTE))(('Unicorn_Write',self.lib),((1,'cbSize'),(1,'pBuffer')))
 		self.Close=WINFUNCTYPE(DWORD)(('Unicorn_Close',self.lib))
 		self.Terminate=WINFUNCTYPE(DWORD)(('Unicorn_Terminate',self.lib))
 		self.SetCallbacks=WINFUNCTYPE(c_void_p,POINTER(c_void_p),POINTER(c_void_p),POINTER(c_void_p),POINTER(c_void_p),POINTER(c_void_p),POINTER(c_void_p),POINTER(c_void_p))(('Unicorn_SetCallbacks',self.lib),((1,'_Connected'),(1,'_Disconnected'),(1,'_Terminated'),(1,'OnNewChannelConnection'),(1,'OnDataReceived'),(1,'OnReadError'),(1,'OnClose')))
@@ -99,7 +99,7 @@ class UnicornCallbackHandler(object):
 		self.c_Disconnected=WINFUNCTYPE(DWORD, DWORD)(self._Disconnected)
 		self.c_Terminated=WINFUNCTYPE(DWORD)(self._Terminated)
 		self.c_OnNewChannelConnection=WINFUNCTYPE(DWORD)(self._OnNewChannelConnection)
-		self.c_OnDataReceived=WINFUNCTYPE(DWORD,ULONG,POINTER(BYTE))(self._OnDataReceived)
+		self.c_OnDataReceived=WINFUNCTYPE(DWORD,DWORD,POINTER(BYTE))(self._OnDataReceived)
 		self.c_OnReadError=WINFUNCTYPE(DWORD,DWORD)(self._OnReadError)
 		self.c_OnClose=WINFUNCTYPE(DWORD)(self._OnClose)
 
